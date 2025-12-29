@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="../css/form.css">
+    <title>Provider Redirection</title>
+</head>
+<body> 
+    <div class="controls">
+        <h2>Redirecting to Provider...</h2>
+        <form id="form">
+            <label for="MPI_REDIRECT_HTTP_METHOD">Method:</label>
+            <input type="text" id="MPI_REDIRECT_HTTP_METHOD" readonly>
+
+            <label for="MPI_REDIRECT_URL">Destination URL:</label>
+            <textarea id="MPI_REDIRECT_URL" rows="3" cols="100" readonly></textarea>
+            
+            <input type="hidden" id="MPI_REDIRECT_HTTP_DATA">
+        </form>
+
+        <button onclick="redirect()" style="padding: 15px 30px; background: #000; color: #fff; border: none; cursor: pointer; font-weight: bold; margin-top: 20px;">
+            CLICK HERE TO REDIRECT
+        </button>
+    </div>
+
+<script>
+    // 1. Get the data from the URL on page load
+    const params = new URLSearchParams(window.location.search);
+    
+    // Fill the UI inputs so the user can see where they are going
+    document.getElementById('MPI_REDIRECT_HTTP_METHOD').value = params.get('MPI_REDIRECT_HTTP_METHOD') || 'POST';
+    document.getElementById('MPI_REDIRECT_URL').value = params.get('MPI_REDIRECT_URL') || '';
+    document.getElementById('MPI_REDIRECT_HTTP_DATA').value = params.get('MPI_REDIRECT_HTTP_DATA') || '';
+
+    function redirect() {
+        let url = document.getElementById("MPI_REDIRECT_URL").value.trim();   
+        let mtd = document.getElementById("MPI_REDIRECT_HTTP_METHOD").value.trim();
+
+        if (!url) {
+            alert("Error: No Redirect URL found.");
+            return;
+        }
+
+        // Create a temporary form to execute the jump
+        let mapForm = document.createElement("form");
+        mapForm.method = mtd;
+        mapForm.action = url;
+        
+        // Use _top to ensure we break out of any iframes (bank pages usually require this)
+        mapForm.target = "_top"; 
+
+        // Add to document and submit
+        document.body.appendChild(mapForm);
+        mapForm.submit();
+    }
+</script>
+</body>
+</html>
