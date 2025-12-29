@@ -3,7 +3,7 @@ export default function handler(req, res) {
         const data = req.body;
         const queryParams = new URLSearchParams(data).toString();
 
-        if (data.MPI_REDIRECT_HTTP_DATA) {
+        if (data.MPI_REDIRECT_URL) {
             res.setHeader('Content-Type', 'text/html');
             res.status(200).send(`
                 <!DOCTYPE html>
@@ -68,5 +68,6 @@ export default function handler(req, res) {
         res.status(405).json({ error: "Method Not Allowed" });
     }
 }
+
 
 
