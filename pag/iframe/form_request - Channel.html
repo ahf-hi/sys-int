@@ -63,7 +63,6 @@ function channel() {
     const transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
     const MAC = document.forms["form"]["MPI_MAC"].value;
 
-    // We only need the table and the container now
     const tbody = document.getElementById('table-body');
     const container = document.getElementById('response-container');
 
@@ -76,35 +75,39 @@ function channel() {
     fetch(`${GET_CHANNEL_URL}?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
-            // Clear previous table rows
-            tbody.innerHTML = "";
+            tbody.innerHTML = ""; // Clear previous results
             
             if (data.MPI_PAYMENT_CHANNEL_LIST && data.MPI_PAYMENT_CHANNEL_LIST.length > 0) {
                 container.style.display = 'block';
                 
-                const channels = data.MPI_PAYMENT_CHANNEL_LIST[0].MPI_PAYMENT_CHANNEL;
+                // FIX: Loop through every category (EWALLETS, FPX, etc.)
+                data.MPI_PAYMENT_CHANNEL_LIST.forEach(category => {
+                    const methodType = category.MPI_PAYMENT_METHOD; // "EWALLETS" or "FPX"
+                    const channels = category.MPI_PAYMENT_CHANNEL;
 
-                channels.forEach(item => {
-                    const cName = item.MPI_CHANNEL_NAME;
-                    const cId = item.MPI_CHANNEL_ID;
-                    const cStatus = item.MPI_CHANNEL_STATUS;
-
-                    let row = tbody.insertRow();
-                    row.insertCell(0).textContent = cName;
-                    row.insertCell(1).textContent = cId;
-                    
-                    let btnCell = row.insertCell(2);
-                    let btn = document.createElement("button");
-                    btn.textContent = cStatus === 'A' ? "Active" : "Unavailable";
-                    btn.type = "button";
-                    btn.disabled = (cStatus !== 'A');
-                    
-                    btn.onclick = () => {
-                        // If you want to do something when they click Select, 
-                        // like showing an alert or saving the ID, do it here:
-                        alert("You selected: " + cName + " (" + cId + ")");
-                    };
-                    btnCell.appendChild(btn);
+                    channels.forEach(item => {
+                        let row = tbody.insertRow();
+                        
+                        // Column 1: Channel Name (Added Method Type for clarity)
+                        row.insertCell(0).innerHTML = `<strong>[${methodType}]</strong> ${item.MPI_CHANNEL_NAME}`;
+                        
+                        // Column 2: Channel ID
+                        row.insertCell(1).textContent = item.MPI_CHANNEL_ID;
+                        
+                        // Column 3: Action Button
+                        let btnCell = row.insertCell(2);
+                        let btn = document.createElement("button");
+                        
+                        const isActive = item.MPI_CHANNEL_STATUS === 'A';
+                        btn.textContent = isActive ? "Select" : "Offline";
+                        btn.className = isActive ? "btn-active" : "btn-disabled";
+                        btn.disabled = !isActive;
+                        
+                        btn.onclick = () => {
+                            alert(`Selected: ${item.MPI_CHANNEL_NAME}\nMethod: ${methodType}\nID: ${item.MPI_CHANNEL_ID}`);
+                        };
+                        btnCell.appendChild(btn);
+                    });
                 });
             } else {
                 alert("No channels found: " + (data.MPI_ERROR_DESC || "Unknown error"));
@@ -112,7 +115,7 @@ function channel() {
         })
         .catch(error => {
             console.error("Fetch error:", error);
-            alert("Connection error occurred. Check if all form fields are filled.");
+            alert("Connection error occurred.");
         });
 }
 
@@ -197,6 +200,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
