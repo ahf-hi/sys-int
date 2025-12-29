@@ -3,37 +3,67 @@ export default function handler(req, res) {
         const data = req.body;
         const queryParams = new URLSearchParams(data).toString();
 
-        // Check if the specific redirect field exists
         if (data.MPI_REDIRECT_HTTP_DATA) {
-            // STEP A: Show the Review Page first
             res.setHeader('Content-Type', 'text/html');
             res.status(200).send(`
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Review Redirection Data</title>
+                    <meta charset="UTF-8">
+                    <title>Transaction Review</title>
                     <style>
-                        body { font-family: monospace; background: #121212; color: #00ff00; padding: 20px; }
-                        .box { border: 1px solid #333; padding: 20px; background: #000; border-radius: 5px; }
-                        pre { white-space: pre-wrap; word-break: break-all; color: #00ff00; }
-                        .btn { display: inline-block; background: #28a745; color: white; padding: 15px 30px; 
-                               text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; font-family: sans-serif; }
+                        body { 
+                            font-family: -apple-system, system-ui, sans-serif; 
+                            background-color: #ffffff; 
+                            color: #000000; 
+                            padding: 20px; 
+                            line-height: 1.5;
+                        }
+                        .wrapper { 
+                            max-width: 900px; 
+                            margin: 0 auto; 
+                            border: 1px solid #ddd; 
+                            padding: 30px; 
+                            border-radius: 4px;
+                        }
+                        h1 { font-size: 24px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+                        pre { 
+                            background-color: #f8f9fa; 
+                            padding: 20px; 
+                            border: 1px solid #e9ecef; 
+                            overflow-x: auto; 
+                            white-space: pre-wrap; 
+                            word-break: break-all;
+                            font-size: 14px;
+                            color: #333;
+                        }
+                        .button { 
+                            display: inline-block; 
+                            background-color: #000000; 
+                            color: #ffffff; 
+                            padding: 12px 24px; 
+                            text-decoration: none; 
+                            border-radius: 4px; 
+                            font-weight: 600; 
+                            margin-top: 20px;
+                        }
+                        .button:hover { background-color: #333333; }
                     </style>
                 </head>
                 <body>
-                    <div class="box">
-                        <h2>Response Body Detected</h2>
-                        <p>The bank has sent redirection data. Please review below:</p>
-                        <hr>
+                    <div class="wrapper">
+                        <h1>Transaction Data Review</h1>
+                        <p>A redirection request has been detected. Please review the response body before proceeding to the bank form.</p>
+                        
                         <pre>${JSON.stringify(data, null, 4)}</pre>
                         
-                        <a href="/form.html?${queryParams}" class="btn">Continue to Form</a>
+                        <a href="/form.html?${queryParams}" class="button">Continue to Form</a>
                     </div>
                 </body>
                 </html>
             `);
         } else {
-            // STEP B: No redirect data found, go straight to receipt
+            // No redirect data? Send straight to the standard receipt
             res.redirect(302, `/payment-status.html?${queryParams}`);
         }
     } else {
