@@ -75,47 +75,47 @@ function channel() {
     fetch(`${GET_CHANNEL_URL}?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
-            tbody.innerHTML = ""; // Clear previous results
-            
+            // 1. IMPORTANT: Clear previous table rows before adding new ones
+            tbody.innerHTML = ""; 
+
             if (data.MPI_PAYMENT_CHANNEL_LIST && data.MPI_PAYMENT_CHANNEL_LIST.length > 0) {
+                // 2. IMPORTANT: Show the hidden table container
                 container.style.display = 'block';
-                
-                // FIX: Loop through every category (EWALLETS, FPX, etc.)
+
                 data.MPI_PAYMENT_CHANNEL_LIST.forEach(category => {
-                    const methodType = category.MPI_PAYMENT_METHOD; // "EWALLETS" or "FPX"
+                    const methodType = category.MPI_PAYMENT_METHOD;
                     const channels = category.MPI_PAYMENT_CHANNEL;
 
                     channels.forEach(item => {
                         let row = tbody.insertRow();
                         
-                        // Column 1: Channel Name (Added Method Type for clarity)
-                        row.insertCell(0).innerHTML = `<strong>[${methodType}]</strong> ${item.MPI_CHANNEL_NAME}`;
+                        // Column 1: Name with Tag
+                        row.insertCell(0).innerHTML = `<span class="method-tag">${methodType}</span> ${item.MPI_CHANNEL_NAME}`;
                         
-                        // Column 2: Channel ID
+                        // Column 2: ID
                         row.insertCell(1).textContent = item.MPI_CHANNEL_ID;
                         
-                        // Column 3: Action Button
+                        // Column 3: Button with class
                         let btnCell = row.insertCell(2);
                         let btn = document.createElement("button");
-                        
-                        const isActive = item.MPI_CHANNEL_STATUS === 'A';
-                        btn.textContent = isActive ? "Select" : "Offline";
-                        btn.className = isActive ? "btn-active" : "btn-disabled";
-                        btn.disabled = !isActive;
+                        btn.className = "btn-select"; 
+                        btn.textContent = item.MPI_CHANNEL_STATUS === 'A' ? "Select" : "Offline";
+                        btn.disabled = (item.MPI_CHANNEL_STATUS !== 'A');
                         
                         btn.onclick = () => {
-                            alert(`Selected: ${item.MPI_CHANNEL_NAME}\nMethod: ${methodType}\nID: ${item.MPI_CHANNEL_ID}`);
+                            alert("Selected: " + item.MPI_CHANNEL_NAME + " (" + item.MPI_CHANNEL_ID + ")");
                         };
                         btnCell.appendChild(btn);
                     });
                 });
             } else {
-                alert("No channels found: " + (data.MPI_ERROR_DESC || "Unknown error"));
+                // 3. IMPORTANT: Handle cases where the API returns an error message
+                alert("No channels found: " + (data.MPI_ERROR_DESC || "Unknown API Error"));
             }
         })
         .catch(error => {
             console.error("Fetch error:", error);
-            alert("Connection error occurred.");
+            alert("Connection error occurred. Check your network or API URL.");
         });
 }
 
@@ -200,6 +200,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
