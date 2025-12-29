@@ -99,7 +99,7 @@ function channel() {
                         let btnCell = row.insertCell(2);
                         let btn = document.createElement("button");
                         btn.className = "btn-select"; 
-                        btn.textContent = item.MPI_CHANNEL_STATUS === 'A' ? "Select" : "Offline";
+                        btn.textContent = item.MPI_CHANNEL_STATUS === 'A' ? "Active" : "Offline";
                         btn.disabled = (item.MPI_CHANNEL_STATUS !== 'A');
                         
                         btn.onclick = () => {
@@ -200,6 +200,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
