@@ -1,17 +1,17 @@
 export default function handler(req, res) {
-    // Check if the request is a POST (standard for payment gateways)
     if (req.method === 'POST') {
-        // req.body contains the FORM data sent by the provider
         const data = req.body;
-
-        // Convert the object into a URL-friendly string (e.g., ?MPI_STATUS=1&...)
         const queryParams = new URLSearchParams(data).toString();
 
-        // Redirect the user back to your landing page with the data attached
-        // Using a relative path works perfectly on Vercel
-        res.redirect(302, `/payment-status.html?${queryParams}`);
+        // Check if the specific "Redirect Data" field exists in the bank's response
+        if (data.MPI_REDIRECT_HTTP_DATA) {
+            // Send to the Form page
+            res.redirect(302, `/form.html?${queryParams}`);
+        } else {
+            // Send to the standard Receipt page
+            res.redirect(302, `/payment-status.html?${queryParams}`);
+        }
     } else {
-        // If someone tries to visit the API link directly, show an error
-        res.status(405).json({ error: "Method Not Allowed. This endpoint expects a POST request from the payment gateway." });
+        res.status(405).json({ error: "Method Not Allowed" });
     }
 }
