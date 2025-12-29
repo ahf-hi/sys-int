@@ -42,12 +42,13 @@
     
     // 2. Define the fields we want to show (based on your bank's response)
     const fieldsToShow = {
-        'MPI_ERROR_CODE': 'Status',
-        'MPI_TRXN_ID': 'Transaction ID',
-        'MPI_REF_ID': 'Reference ID',
-        'MPI_MERC_ID': 'Merchant ID',
-        'MPI_BUYER_BANK': 'Bank Name',
+        'MPI_ERROR_CODE': 'Status',        
         'MPI_ERROR_DESC': 'Notes'
+        'MPI_REFERRAL_CODE': 'Referral Code'
+        'MPI_MERC_ID': 'Merchant ID',
+        'MPI_TRXN_ID': 'Transaction ID',
+        'MPI_CUST_PAYMENT_METHOD': 'Payment Method',
+        'MPI_BUYER_BANK': 'Bank Name',
     };
 
     // 3. Update Status Banner
@@ -76,5 +77,6 @@
 </body>
 
 </html>
+
 
 
