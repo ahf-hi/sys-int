@@ -36,7 +36,6 @@ export default function handler(req, res) {
                     <div class="wrapper">
                         <h1>Response Body</h1>
                         <pre>${JSON.stringify(data, null, 4)}</pre>
-                        <p><strong>Target Page:</strong> ${destination}</p>
                         <a href="${destination}?${queryParams}" class="button">Continue to Form</a>
                     </div>
                 </body>
@@ -50,3 +49,4 @@ export default function handler(req, res) {
         res.status(405).json({ error: "Method Not Allowed" });
     }
 }
+
