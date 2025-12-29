@@ -39,10 +39,10 @@
     const params = new URLSearchParams(window.location.search);
     const tableBody = document.getElementById('details-body');
     const statusBanner = document.getElementById('status-banner');
-
+    
     // 2. Define the fields we want to show (based on your bank's response)
     const fieldsToShow = {
-        'MPI_STATUS': 'Status',
+        'MPI_ERROR_CODE': 'Status',
         'MPI_TRXN_ID': 'Transaction ID',
         'MPI_REF_ID': 'Reference ID',
         'MPI_MERC_ID': 'Merchant ID',
@@ -52,7 +52,7 @@
 
     // 3. Update Status Banner
     const status = params.get('MPI_STATUS');
-    if (status === "1") {
+    if (status === "000") {
         statusBanner.innerText = "✓ TRANSACTION SUCCESSFUL";
         statusBanner.className = "status-badge success";
     } else {
@@ -76,3 +76,4 @@
 </body>
 
 </html>
+
