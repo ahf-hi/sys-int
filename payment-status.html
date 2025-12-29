@@ -51,7 +51,7 @@
     };
 
     // 3. Update Status Banner
-    const status = params.get('MPI_STATUS');
+    const status = params.get('MPI_ERROR_CODE');
     if (status === "000") {
         statusBanner.innerText = "✓ TRANSACTION SUCCESSFUL";
         statusBanner.className = "status-badge success";
@@ -76,4 +76,5 @@
 </body>
 
 </html>
+
 
