@@ -30,7 +30,23 @@
 
 
 <script>
+// 1. Get the data from the URL
+        const params = new URLSearchParams(window.location.search);
 
+        // 2. Map URL parameters to Form IDs
+        const fields = ['MPI_REDIRECT_HTTP_METHOD', 'MPI_REDIRECT_URL', 'MPI_REDIRECT_HTTP_DATA'];
+
+        fields.forEach(field => {
+            const value = params.get(field);
+            if (value) {
+                document.getElementById(field).value = value;
+            }
+        });
+
+        // Optional: If you want the form to submit to the bank automatically, 
+        // you would set the form's 'action' to the MPI_REDIRECT_URL 
+        // and call document.getElementById('form').submit();
+	
 function redirect() {
     let url = document.getElementById("MPI_REDIRECT_URL").value.trim();   
 	let mtd = document.getElementById("MPI_REDIRECT_HTTP_METHOD").value.trim();
@@ -66,5 +82,6 @@ function redirect() {
 }
 
 </script>
+
 
 </html>
