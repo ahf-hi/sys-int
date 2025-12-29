@@ -23,34 +23,40 @@
     </div>
 
 <script>
-    // 1. Get the data from the URL on page load
+// 1. Get the data from the URL on page load
     const params = new URLSearchParams(window.location.search);
     
-    // Fill the UI inputs so the user can see where they are going
-    document.getElementById('MPI_REDIRECT_HTTP_METHOD').value = params.get('MPI_REDIRECT_HTTP_METHOD') || 'POST';
-    document.getElementById('MPI_REDIRECT_URL').value = params.get('MPI_REDIRECT_URL') || '';
-    document.getElementById('MPI_REDIRECT_HTTP_DATA').value = params.get('MPI_REDIRECT_HTTP_DATA') || '';
+    // Fill the UI for review
+    const targetUrl = params.get('MPI_REDIRECT_URL') || '';
+    const targetMethod = params.get('MPI_REDIRECT_HTTP_METHOD') || 'GET';
+
+    document.getElementById('MPI_REDIRECT_URL').value = targetUrl;
+    document.getElementById('MPI_REDIRECT_HTTP_METHOD').value = targetMethod;
 
     function redirect() {
-        let url = document.getElementById("MPI_REDIRECT_URL").value.trim();   
-        let mtd = document.getElementById("MPI_REDIRECT_HTTP_METHOD").value.trim();
+        const url = document.getElementById("MPI_REDIRECT_URL").value.trim();
+        const mtd = document.getElementById("MPI_REDIRECT_HTTP_METHOD").value.trim().toUpperCase();
 
         if (!url) {
             alert("Error: No Redirect URL found.");
             return;
         }
 
-        // Create a temporary form to execute the jump
-        let mapForm = document.createElement("form");
-        mapForm.method = mtd;
-        mapForm.action = url;
-        
-        // Use _top to ensure we break out of any iframes (bank pages usually require this)
-        mapForm.target = "_top"; 
-
-        // Add to document and submit
-        document.body.appendChild(mapForm);
-        mapForm.submit();
+        // IF THE METHOD IS GET:
+        // Use location.replace to simulate a direct browser entry.
+        // This clears the "Referer" and context that often causes failures.
+        if (mtd === "GET") {
+            window.top.location.replace(url);
+        } else {
+            // IF THE METHOD IS POST:
+            // Use the hidden form method as before.
+            let mapForm = document.createElement("form");
+            mapForm.method = "POST";
+            mapForm.action = url;
+            mapForm.target = "_top"; 
+            document.body.appendChild(mapForm);
+            mapForm.submit();
+        }
     }
 </script>
 </body>
