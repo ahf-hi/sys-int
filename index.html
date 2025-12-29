@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/start.css">
+
+
+</head>
+<body>
+
+<header class="top-header">
+        <h1>Payment Integration Dashboard</h1>
+    </header>
+
+    
+    <div class="controls">
+        <a href="mpi/index.html">
+              MPI  
+        </a>
+
+		<a href="iframe/form_request - PAG.html" target="formDisplay">
+            PAG - UAT  (Hosted Payment Page)
+        </a>
+				
+		<a href="pag/index.html">
+            PAG - UAT  (Non Hosted Payment Page)
+        </a>
+		
+    </div>
+
+    <div class="container">
+        <div class="left-panel">
+            <iframe
+                id="left-container"
+                name="formDisplay"
+                src="about:blank"
+                title="Embedded Form Display">
+                Sorry, your browser does not support iframes.
+            </iframe>
+        </div>
+
+        <div class="right-panel">
+            <div class="file-content">
+                <embed src="key/private.txt" width="100%" height="100px" title="Private Key Content">
+            </div>
+            
+            <div class="static-content">
+                <object width="100%" height="100%" data="https://8gwifi.org/RSAFunctionality?rsasignverifyfunctions=rsasignverifyfunctions&keysize=2048" title="RSA Functionality"></object>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+
+
+
+

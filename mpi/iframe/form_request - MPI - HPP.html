@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <link rel="stylesheet" href="../css/form.css">
+    
+</head>
+
+
+
+<body> 
+
+<div class="controls">
+
+ <form id="form" method="post" action="" >
+
+            <label for="MPI_TRANS_TYPE">MPI_TRANS_TYPE (Transaction Type):</label>
+            <select name="MPI_TRANS_TYPE" id="MPI_TRANS_TYPE">
+              <option value="SALES">SALES</option>
+              <option value="INITRECURR">INITRECURR</option>
+              <option value="PRERECURR">PRERECURR</option>
+              <option value="PREAUTH">PREAUTH</option>
+            </select>
+
+            <label for="MPI_MERC_ID">MPI_MERC_ID (MID):</label>
+             <input type="text" name="MPI_MERC_ID" id="MPI_MERC_ID" maxlength="15" >
+
+            <label for="MPI_PURCH_DATE">MPI_PURCH_DATE (Datetime) :</label>
+             <input type="text" name="MPI_PURCH_DATE" id="MPI_PURCH_DATE" maxlength="14" >
+
+            <label for="MPI_TRXN_ID">MPI_TRXN_ID (Transaction ID):</label>
+             <input type="text" name="MPI_TRXN_ID" id="MPI_TRXN_ID" maxlength="20" >
+
+            <label for="MPI_PURCH_CURR">MPI_PURCH_CURR (Currency: MYR only):</label>
+             <input type="text" name="MPI_PURCH_CURR" id="MPI_PURCH_CURR" value = '458' maxlength="3" >
+
+            <label for="MPI_PURCH_AMT">MPI_PURCH_AMT (Amount):</label>
+             <input type="text" name="MPI_PURCH_AMT" id="MPI_PURCH_AMT" maxlength="19" >
+
+            <label for="MPI_MAC">MPI_MAC (Signed MAC) :</label>
+             <textarea name="MPI_MAC" id="MPI_MAC" maxlength="344" rows="5" cols="100" ></textarea>
+
+ </form>
+    
+ 
+   <button onclick="clear_mac()" >Clear MAC</button><br>
+      <textarea id = "mac" rows="1" cols="90" ></textarea><br>
+  
+   <button onclick="trim_mac()" >Trim MAC</button><br><br>
+   
+   <button onclick="mkReq()">Key Exhcange </button>
+   <button onclick="mpReq()">Pay </button><br><br>	
+</div>
+
+
+</body>
+
+
+<script>
+
+const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
+const PAYMENT_REQUEST_URL = "https://devlink.paydee.co/mpi/mercReq";
+
+document.getElementById("form").action = PAYMENT_REQUEST_URL;
+
+function mkReq() 
+{
+ let MID =  document.forms["form"]["MPI_MERC_ID"].value
+ let transactionID =  document.forms["form"]["MPI_TRXN_ID"].value
+ 
+ var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+ var raw = JSON.stringify({
+    "merchantId": MID,
+    "pubKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB",
+    "purchaseId": transactionID
+ });
+
+ var requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    mode: 'no-cors',
+    body: raw,
+    redirect: 'follow'
+ };
+
+ fetch(KEY_EXCHANGE_URL, requestOptions)
+  .then(response => response.json())
+  .then(commits => alert(commits[0].author.login));
+  
+} 
+
+function mpReq()
+{
+    document.getElementById("form").submit();
+}
+
+
+function clear_mac() 
+{
+  document.getElementById("mac").innerHTML = 
+    document.forms["form"]["MPI_TRANS_TYPE"].value 
+  + document.forms["form"]["MPI_MERC_ID"].value 
+  + document.forms["form"]["MPI_TRXN_ID"].value
+  + document.forms["form"]["MPI_PURCH_DATE"].value
+  + document.forms["form"]["MPI_PURCH_CURR"].value
+  + document.forms["form"]["MPI_PURCH_AMT"].value;
+}
+
+function trim_mac() {
+  let macElement = document.forms["form"]["MPI_MAC"];
+  
+  let rawMac = macElement.value;
+  
+  let trimmedMac = rawMac.replace(/[+]/g, "-")
+                         .replace(/[/]/g, "_")
+                         .replace(/[=]/g, "");
+  
+  macElement.value = trimmedMac;
+}
+
+let d = new Date();
+let year = d.getFullYear() ;
+let mth  = d.getMonth() +1;
+ mth = mth.toString().padStart(2, '0');
+let day = d.getDate() ;
+ day = day.toString().padStart(2, '0');
+let hrs = d.getHours() ;
+ hrs = hrs.toString().padStart(2, '0');
+let min = d.getMinutes() ;
+ min = min.toString().padStart(2, '0');
+let sec = d.getSeconds() ;
+ sec = sec.toString().padStart(2, '0');
+ 
+let x = year + mth + day + hrs + min + sec;
+document.forms["form"]["MPI_PURCH_DATE"].value = x;
+
+let y = "MPIUAT" + x;
+document.forms["form"]["MPI_TRXN_ID"].value = y;
+
+	
+</script>
+
+</html>

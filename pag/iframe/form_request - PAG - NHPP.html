@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <link rel="stylesheet" href="../css/form.css">
+    
+</head>
+
+<div class="controls">
+<body> 
+
+ <form id="form" method="post" action="" >
+
+           <label for="MPI_TRANS_TYPE">MPI_TRANS_TYPE (Transaction Type):</label>
+            <select name="MPI_TRANS_TYPE" id="MPI_TRANS_TYPE">
+              <option value="SALES">SALES</option>
+              <option value="INITRECURR">INITRECURR</option>
+              <option value="PRERECURR">PRERECURR</option>
+              <option value="PREAUTH">PREAUTH</option>
+            </select>
+
+            <label for="MPI_MERC_ID">MPI_MERC_ID (MID):</label>
+             <input type="text" name="MPI_MERC_ID" id="MPI_MERC_ID" maxlength="15" >
+
+            <label for="MPI_PURCH_DATE">MPI_PURCH_DATE (Datetime) :</label>
+             <input type="text" name="MPI_PURCH_DATE" id="MPI_PURCH_DATE" maxlength="14" >
+
+            <label for="MPI_TRXN_ID">MPI_TRXN_ID (Transaction ID):</label>
+             <input type="text" name="MPI_TRXN_ID" id="MPI_TRXN_ID" maxlength="20" >
+
+            <label for="MPI_PURCH_CURR">MPI_PURCH_CURR (Currency: MYR only):</label>
+             <input type="text" name="MPI_PURCH_CURR" id="MPI_PURCH_CURR" value = '458' maxlength="3" >
+
+            <label for="MPI_PURCH_AMT">MPI_PURCH_AMT (Amount):</label>
+             <input type="text" name="MPI_PURCH_AMT" id="MPI_PURCH_AMT" maxlength="19" >
+
+            <label for="MPI_PAYMENT_CHANNEL_ID">MPI_PAYMENT_CHANNEL_ID:</label>
+            <input type="text" name="MPI_PAYMENT_CHANNEL_ID" id="MPI_PAYMENT_CHANNEL_ID" maxlength="30" >
+
+            <label for="MPI_MAC">MPI_MAC (Signed MAC) :</label>
+             <textarea name="MPI_MAC" id="MPI_MAC" maxlength="344" rows="5" cols="100" ></textarea>
+
+ </form>
+    
+ 
+   <button onclick="clear_mac()" >Clear MAC</button><br>
+      <textarea id = "mac" rows="1" cols="90" ></textarea><br> 
+  
+   <button onclick="trim_mac()" >Trim MAC</button><br><br>
+   
+   <button onclick="mkReq()">Key Exhcange </button>
+   
+   <button onclick="mpReq()">Pay </button><br><br>	
+   
+</body>
+
+
+<script>
+
+const KEY_EXCHANGE_URL = "https://devlinkv2.paydee.co/mpigw/mkReq";
+const PAYMENT_REQUEST_URL = "https://devlinkv2.paydee.co/mpigw/mpReq";
+const GET_CHANNEL_URL = "https://devlinkv2.paydee.co/mpigw/channels"
+
+document.getElementById("form").action = PAYMENT_REQUEST_URL;
+
+function handlePaymentResponse(queryString) {
+    // 1. Parse the string into an object
+    const params = new URLSearchParams(queryString);
+    
+    const mid = params.get('MPI_MERC_ID');
+    const trxnId = params.get('MPI_TRXN_ID');
+    const desc = params.get('MPI_ERROR_DESC');
+    const redirectUrl = params.get('MPI_REDIRECT_URL');
+    const jsonData = params.get('MPI_REDIRECT_HTTP_DATA');
+
+    // 2. Display the 3 pieces of info
+    document.getElementById('summary-mid').textContent = mid;
+    document.getElementById('summary-trxn').textContent = trxnId;
+    document.getElementById('summary-desc').textContent = desc;
+    document.getElementById('payment-summary').style.display = 'block';
+
+    // 3. Set up the "Proceed" button
+    const proceedBtn = document.getElementById('btn-redirect');
+    proceedBtn.onclick = function() {
+        submitToBank(redirectUrl, jsonData);
+    };
+}
+
+function submitToBank(url, jsonDataString) {
+    const form = document.getElementById('redirect-form');
+    form.action = url;
+    form.innerHTML = ""; // Clear previous inputs
+
+    // Parse the internal FPX JSON data
+    const fpxData = JSON.parse(jsonDataString);
+
+    // Create a hidden input for every key in the FPX data
+    for (let key in fpxData) {
+        if (fpxData.hasOwnProperty(key)) {
+            let input = document.createElement("input");
+            input.type = "hidden";
+            input.name = key;
+            input.value = fpxData[key];
+            form.appendChild(input);
+        }
+    }
+
+    // Submit the form to the bank
+    form.submit();
+}
+
+function channel() 
+{
+const MID = document.forms["form"]["MPI_MERC_ID"].value;
+    const transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
+    const MAC = document.forms["form"]["MPI_MAC"].value;
+
+    const selectMenu = document.getElementById('MPI_PAYMENT_CHANNEL_ID');
+    const tbody = document.getElementById('table-body');
+    const container = document.getElementById('response-container');
+
+    const params = new URLSearchParams({
+        "MPI_MERC_ID": MID,
+        "MPI_TRXN_ID": transactionID,
+        "MPI_MAC": MAC
+    });
+
+    fetch(`${GET_CHANNEL_URL}?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            // Reset UI
+            selectMenu.innerHTML = '<option value="">-- Select a bank --</option>';
+            tbody.innerHTML = "";
+            
+            // Check if we have the list in the response
+            if (data.MPI_PAYMENT_CHANNEL_LIST && data.MPI_PAYMENT_CHANNEL_LIST.length > 0) {
+                container.style.display = 'block';
+                
+                // Navigate the nested JSON: List -> First Method (FPX) -> Channels
+                const channels = data.MPI_PAYMENT_CHANNEL_LIST[0].MPI_PAYMENT_CHANNEL;
+
+                channels.forEach(item => {
+                    const cName = item.MPI_CHANNEL_NAME;
+                    const cId = item.MPI_CHANNEL_ID;
+                    const cStatus = item.MPI_CHANNEL_STATUS;
+
+                    // --- 1. Populate Dropdown ---
+                    let option = document.createElement("option");
+                    option.value = cId;
+                    option.textContent = `${cName} (${cId})`;
+                    // Disable if status is not 'A' (Active)
+                    if (cStatus !== 'A') {
+                        option.textContent += " - Maintenance";
+                        option.disabled = true;
+                    }
+                    selectMenu.appendChild(option);
+
+                    // --- 2. Populate Table ---
+                    let row = tbody.insertRow();
+                    row.insertCell(0).textContent = cName;
+                    row.insertCell(1).textContent = cId;
+                    
+                    let btnCell = row.insertCell(2);
+                    let btn = document.createElement("button");
+                    btn.textContent = cStatus === 'A' ? "Select" : "Unavailable";
+                    btn.type = "button";
+                    btn.disabled = (cStatus !== 'A');
+                    
+                    btn.onclick = () => {
+                        selectMenu.value = cId;
+                        selectMenu.focus();
+                    };
+                    btnCell.appendChild(btn);
+                });
+            } else {
+                alert("No channels found: " + (data.MPI_ERROR_DESC || "Unknown error"));
+            }
+        })
+        .catch(error => {
+            console.error("Fetch error:", error);
+            alert("Connection error occurred.");
+        });
+} 
+
+function mkReq() 
+{
+ let MID =  document.forms["form"]["MPI_MERC_ID"].value
+ let transactionID =  document.forms["form"]["MPI_TRXN_ID"].value
+ 
+ 
+ var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+ var raw = JSON.stringify({
+    "merchantId": MID,
+    "pubKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB",
+    "purchaseId": transactionID
+ });
+
+ var requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    mode: 'no-cors',
+    body: raw,
+    redirect: 'follow'
+ };
+
+ fetch(KEY_EXCHANGE_URL, requestOptions)
+  .then(response => response.json())
+  .then(commits => alert(commits[0].author.login));
+  
+} 
+
+function mpReq()
+{
+    document.getElementById("form").submit();
+}
+
+
+function clear_mac() 
+{
+  document.getElementById("mac").innerHTML = 
+    document.forms["form"]["MPI_TRANS_TYPE"].value 
+  + document.forms["form"]["MPI_MERC_ID"].value 
+  + document.forms["form"]["MPI_TRXN_ID"].value
+  + document.forms["form"]["MPI_PURCH_DATE"].value
+  + document.forms["form"]["MPI_PURCH_CURR"].value
+  + document.forms["form"]["MPI_PURCH_AMT"].value
+  + document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
+}
+
+function trim_mac() {
+  let macElement = document.forms["form"]["MPI_MAC"];
+  
+  let rawMac = macElement.value;
+  
+  let trimmedMac = rawMac.replace(/[+]/g, "-")
+                         .replace(/[/]/g, "_")
+                         .replace(/[=]/g, "");
+  
+  macElement.value = trimmedMac;
+}
+
+let d = new Date();
+let year = d.getFullYear() ;
+let mth  = d.getMonth() +1;
+ mth = mth.toString().padStart(2, '0');
+let day = d.getDate() ;
+ day = day.toString().padStart(2, '0');
+let hrs = d.getHours() ;
+ hrs = hrs.toString().padStart(2, '0');
+let min = d.getMinutes() ;
+ min = min.toString().padStart(2, '0');
+let sec = d.getSeconds() ;
+ sec = sec.toString().padStart(2, '0');
+ 
+let x = year + mth + day + hrs + min + sec;
+document.forms["form"]["MPI_PURCH_DATE"].value = x;
+
+let y = "PAGUAT" + x;
+document.forms["form"]["MPI_TRXN_ID"].value = y;
+
+	
+</script>
+
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <link rel="stylesheet" href="../css/form.css">
+    
+</head>
+
+
+<body> 
+
+<form id="form" method="post" action="">
+
+
+	<div class="controls-container">   
+		<h3>Insert your card info</h3>
+			<div class="credit-card-container">
+				<input type="text" class="card-number-input" id="MPI_PAN" name="MPI_PAN" placeholder="xxxx xxxx xxxx xxxx" maxlength="19" required>
+				<input type="text" class="name-input" id="MPI_CARD_HOLDER_NAME" name="MPI_CARD_HOLDER_NAME" placeholder="CARDHOLDER NAME" maxlength="50" required>
+				<input type="text" class="expiry-input" id="MPI_PAN_EXP" name="MPI_PAN_EXP" placeholder="YY/MM" maxlength="5" required>
+				<input type="text" class="cvv-input" id="MPI_CVV2" name="MPI_CVV2" placeholder="CVV" maxlength="4" required>
+			</div>
+	</div>
+		
+    <div class="controls">
+		
+		<label for="MPI_TRANS_TYPE">MPI_TRANS_TYPE (Transaction Type):</label>
+			<select type="text" name="MPI_TRANS_TYPE">
+				<option value="SALES">SALES</option>
+				<option value="INITRECURR">INITRECURR</option>
+    			<option value="PRERECURR">PRERECURR</option>
+    			<option value="INQ">INQ</option>
+    			<option value="VSALES">VSALES</option>
+    			<option value="REFUND">REFUND</option>
+    			<option value="SALESCOMPL">SALESCOMPL</option>
+    			<option value="RECURR">RECURR</option>
+    			<option value="TERMINATE">TERMINATE</option>
+    			</select>
+	
+		<label for="MPI_MERC_ID">MPI_MERC_ID (MID):</label>
+				<input type="text" name="MPI_MERC_ID" maxlength="15" >
+	
+		<label for="MPI_PURCH_DATE">MPI_PURCH_DATE (Datetime):</label>
+			<input type="text" name="MPI_PURCH_DATE" maxlength="14" >
+	
+		<label for="MPI_TRXN_ID">MPI_TRXN_ID (Transaction ID):</label>
+			<input type="text" name="MPI_TRXN_ID" maxlength="20" >
+	
+		<label for="MPI_ORI_TRXN_ID">MPI_ORI_TRXN_ID (Original Transaction ID):</label>
+			<input type="text" name="MPI_ORI_TRXN_ID" maxlength="20" >
+
+		<label for="MPI_PURCH_CURR">MPI_PURCH_CURR (Currency: MYR only)):</label>
+			<input type="text" name="MPI_PURCH_CURR" value = '458' maxlength="3" >
+	
+		<label for="MPI_PURCH_AMT">MPI_PURCH_AMT (Amount):</label>
+			<input type="text" name="MPI_PURCH_AMT" maxlength="19" >
+	
+		<label for="MPI_MAC"> MPI_MAC (Signed MAC):</label>
+			<textarea type="text" name="MPI_MAC" maxlength="344" rows="5" cols="90" ></textarea>
+	</div>
+	
+</form>
+    
+	<div class="controls">	
+		
+			<button onclick="clear_mac(event)" >Clear MAC</button><br>
+				<textarea id = "mac" rows="1" cols="90" ></textarea><br>
+				
+			<button onclick="trim_mac()" >Trim MAC</button><br><br>
+			
+			<button onclick="mkReq()">Key Exhcange </button>
+			
+			<button onclick="mpReq(event)">Pay </button><br><br>	
+	
+	</div>
+
+
+</body>
+
+
+<script>
+
+const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
+const PAYMENT_REQUEST_URL = "https://devlink.paydee.co/mpi/mpReq";
+
+document.getElementById("form").action = PAYMENT_REQUEST_URL;
+
+function mkReq() 
+{
+ let MID =  document.forms["form"]["MPI_MERC_ID"].value
+ let transactionID =  document.forms["form"]["MPI_TRXN_ID"].value
+ 
+ var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+ var raw = JSON.stringify({
+    "merchantId": MID,
+    "pubKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB",
+    "purchaseId": transactionID
+ });
+
+ var requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    mode: 'no-cors',
+    body: raw,
+    redirect: 'follow'
+ };
+
+ fetch(KEY_EXCHANGE_URL, requestOptions)
+  .then(response => response.json())
+  .then(commits => alert(commits[0].author.login));
+  
+} 
+
+function clear_mac(event) 
+{
+   event.preventDefault();
+
+    // 1. Clean the card number value (remove spaces)
+    // The server needs 16 contiguous digits (xxxxxxxxxxxxxxxx)
+    const cleanedPAN = cardNumberInput.value.replace(/\s/g, '');
+    cardNumberInput.value = cleanedPAN;
+    
+    // 2. Clean the expiry date value (remove slash and reorder to YYMM)
+    // The server needs 4 contiguous digits (YYMM)
+    const rawExpiry = expiryInput.value.replace(/\//g, '');
+    
+    // The rawExpiry is YYMM because of the input event handler logic
+    expiryInput.value = rawExpiry; 
+
+    // Final check for debugging:
+    console.log("Submitting PAN:", cardNumberInput.value); // Should be: xxxxxxxxxxxxxxxx
+    console.log("Submitting EXP:", expiryInput.value);     // Should be: YYMM
+    
+
+	
+  document.getElementById("mac").innerHTML = 
+    document.forms["form"]["MPI_TRANS_TYPE"].value 
+  + document.forms["form"]["MPI_MERC_ID"].value 
+  + document.forms["form"]["MPI_PAN"].value 
+  + document.forms["form"]["MPI_CARD_HOLDER_NAME"].value 
+  + document.forms["form"]["MPI_PAN_EXP"].value 
+  + document.forms["form"]["MPI_CVV2"].value 
+  + document.forms["form"]["MPI_TRXN_ID"].value
+  + document.forms["form"]["MPI_ORI_TRXN_ID"].value
+  + document.forms["form"]["MPI_PURCH_DATE"].value
+  + document.forms["form"]["MPI_PURCH_CURR"].value
+  + document.forms["form"]["MPI_PURCH_AMT"].value;
+}
+
+function trim_mac() {
+  let macElement = document.forms["form"]["MPI_MAC"];
+  
+  let rawMac = macElement.value;
+  
+  let trimmedMac = rawMac.replace(/[+]/g, "-")
+                         .replace(/[/]/g, "_")
+                         .replace(/[=]/g, "");
+  
+  macElement.value = trimmedMac;
+}
+
+let d = new Date();
+let year = d.getFullYear() ;
+let mth  = d.getMonth() +1;
+ mth = mth.toString().padStart(2, '0');
+let day = d.getDate() ;
+ day = day.toString().padStart(2, '0');
+let hrs = d.getHours() ;
+ hrs = hrs.toString().padStart(2, '0');
+let min = d.getMinutes() ;
+ min = min.toString().padStart(2, '0');
+let sec = d.getSeconds() ;
+ sec = sec.toString().padStart(2, '0');
+ 
+let x = year + mth + day + hrs + min + sec;
+document.forms["form"]["MPI_PURCH_DATE"].value = x;
+
+let y = "MPIUAT" + x;
+document.forms["form"]["MPI_TRXN_ID"].value = y;
+
+// 1. Define variables (Crucial Step)
+const cardForm = document.getElementById('form');
+const cardNumberInput = document.getElementById('MPI_PAN');
+const expiryInput = document.getElementById('MPI_PAN_EXP');
+
+// ===================================================
+// A. Display Formatting (What the user SEES)
+// ===================================================
+
+// Card Number Formatting (xxxx xxxx xxxx xxxx)
+cardNumberInput.addEventListener('input', function(e) {
+    let { value } = e.target;
+    
+    // 1. Remove all non-digits
+    value = value.replace(/\D/g, ''); 
+    // 2. Insert space after every 4 digits
+    value = value.replace(/(\d{4})/g, '$1 ').trim();
+    
+    e.target.value = value.substring(0, 19);
+});
+
+// Expiry Date Formatting (YY/MM)
+expiryInput.addEventListener('input', function(e) {
+    let { value } = e.target;
+    
+    // 1. Remove all non-digits
+    value = value.replace(/\D/g, ''); 
+    
+    if (value.length > 2) {
+        // 2. Apply YY/MM format
+        // value.substring(0, 2) is YY
+        // value.substring(2, 4) is MM
+        value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    }
+    
+    e.target.value = value.substring(0, 5);
+});	
+
+
+// ===================================================
+// B. Submission Function (What the server RECEIVES)
+// ===================================================
+
+function mpReq(event) {
+    // Prevent the default form submission for now
+    event.preventDefault();
+
+    // 1. Clean the card number value (remove spaces)
+    // The server needs 16 contiguous digits (xxxxxxxxxxxxxxxx)
+    const cleanedPAN = cardNumberInput.value.replace(/\s/g, '');
+    cardNumberInput.value = cleanedPAN;
+    
+    // 2. Clean the expiry date value (remove slash and reorder to YYMM)
+    // The server needs 4 contiguous digits (YYMM)
+    const rawExpiry = expiryInput.value.replace(/\//g, '');
+    
+    // The rawExpiry is YYMM because of the input event handler logic
+    expiryInput.value = rawExpiry; 
+
+    // Final check for debugging:
+    console.log("Submitting PAN:", cardNumberInput.value); // Should be: xxxxxxxxxxxxxxxx
+    console.log("Submitting EXP:", expiryInput.value);     // Should be: YYMM
+    
+    // 3. Now submit the form with the cleaned values
+    cardForm.submit();
+}
+</script>
+
+</html>
