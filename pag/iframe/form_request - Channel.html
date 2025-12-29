@@ -39,7 +39,7 @@
 						<tr>
 							<th style="padding: 8px;">Channel Name</th>
 							<th style="padding: 8px;">Channel ID</th>
-							<th style="padding: 8px;">Action</th>
+							<th style="padding: 8px;">Status</th>
 						</tr>
 					</thead>
 					<tbody id="table-body"></tbody>
@@ -95,7 +95,7 @@ function channel() {
                     
                     let btnCell = row.insertCell(2);
                     let btn = document.createElement("button");
-                    btn.textContent = cStatus === 'A' ? "Select" : "Unavailable";
+                    btn.textContent = cStatus === 'A' ? "Active" : "Unavailable";
                     btn.type = "button";
                     btn.disabled = (cStatus !== 'A');
                     
@@ -197,6 +197,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
