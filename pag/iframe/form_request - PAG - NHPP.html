@@ -51,7 +51,7 @@
         <button onclick="trim_mac()">Trim MAC</button><br><br>
 
         <button onclick="mkReq()">Key Exchange</button>
-        <button onclick="mpReq()">Pay</button><br><br>
+        <button type="button" onclick="mpReq()">Pay</button>
 
         <div id="frontend-display" style="display:none; margin: 20px; border: 2px solid #000; padding: 20px; background-color: #f9f9f9;">
             <h2>Payment Summary</h2>
@@ -73,84 +73,97 @@
 
         document.getElementById("form").action = PAYMENT_REQUEST_URL;
 
-        async function mpReq() {
-            const form = document.getElementById("form");
-            const payButton = document.querySelector("button[onclick='mpReq()']");
-            
-            // 1. Prepare Data & Exclude Empty Fields
-            const formData = new FormData(form);
-            const cleanedData = new URLSearchParams();
-            
-            for (const [key, value] of formData.entries()) {
-                if (value.trim() !== "") {
-                    cleanedData.append(key, value);
-                }
-            }
-
-            payButton.disabled = true;
-            payButton.innerText = "Processing...";
-
-            try {
-                // 2. Use fetch to catch JSON or HTML
-                const response = await fetch(PAYMENT_REQUEST_URL, {
-                    method: 'POST',
-                    body: cleanedData,
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                });
-
-                const contentType = response.headers.get("content-type");
-
-                if (contentType && contentType.includes("application/json")) {
-                    const data = await response.json();
-                    showFrontendUI(data);
-                } else {
-                    // This handles the HTML response from your Vercel callback.js
-                    const htmlResult = await response.text();
-                    document.body.innerHTML = htmlResult;
-                }
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Request failed. Check console for CORS errors.");
-            } finally {
-                payButton.disabled = false;
-                payButton.innerText = "Pay";
-            }
+async function mpReq() {
+    const form = document.getElementById("form");
+    const payButton = document.querySelector("button[onclick='mpReq()']");
+    
+    // 1. Clean data (exclude empty fields)
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        if (value.trim() !== "") {
+            params.append(key, value);
         }
+    }
 
-        function showFrontendUI(data) {
-            document.getElementById('frontend-display').style.display = 'block';
-            document.getElementById('view-mid').innerText = data.MPI_MERC_ID || 'N/A';
-            document.getElementById('view-txid').innerText = data.MPI_TRXN_ID || 'N/A';
+    payButton.disabled = true;
+    payButton.innerText = "Processing...";
 
-            const actionArea = document.getElementById('action-area');
-            if (data.MPI_REDIRECT_URL) {
-                actionArea.innerHTML = `<button style="background:black; color:white; padding:10px;" onclick="submitToBank('${data.MPI_REDIRECT_URL}', '${data.MPI_REDIRECT_HTTP_DATA}')">Proceed to Bank</button>`;
-            } else {
-                actionArea.innerHTML = `<p>No redirect required.</p>`;
-            }
-        }
+    try {
+        // 2. The Fetch call (This keeps you on the page!)
+        const response = await fetch(PAYMENT_REQUEST_URL, {
+            method: 'POST',
+            body: params,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
 
-        function submitToBank(url, jsonDataString) {
-            const rForm = document.getElementById('redirect-form');
-            rForm.action = url;
-            rForm.innerHTML = ""; 
+        // 3. Force the response into your hidden div
+        const data = await response.json();
+        
+        // Populate the fields
+        document.getElementById('view-mid').innerText = data.MPI_MERC_ID || "N/A";
+        document.getElementById('view-txid').innerText = data.MPI_TRXN_ID || "N/A";
+        
+        // Show the hidden section
+        document.getElementById('frontend-display').style.display = 'block';
+        
+        // Scroll down to show the result
+        document.getElementById('frontend-display').scrollIntoView();
 
-            try {
-                const fpxData = JSON.parse(jsonDataString);
-                for (let key in fpxData) {
-                    let input = document.createElement("input");
-                    input.type = "hidden";
-                    input.name = key;
-                    input.value = fpxData[key];
-                    rForm.appendChild(input);
-                }
-                rForm.submit();
-            } catch (e) {
-                console.error("Failed to parse redirect data", e);
-            }
-        }
+    } catch (error) {
+        console.error("Error:", error);
+        alert("CORS Error: The payment server does not allow reading data directly via JavaScript.");
+    } finally {
+        payButton.disabled = false;
+        payButton.innerText = "Pay";
+    }
+}
 
-        // ... Keep your other functions (mkReq, clear_mac, trim_mac, Date logic) here ...
+
+function clear_mac() 
+{
+  document.getElementById("mac").innerHTML = 
+    document.forms["form"]["MPI_TRANS_TYPE"].value 
+  + document.forms["form"]["MPI_MERC_ID"].value 
+  + document.forms["form"]["MPI_TRXN_ID"].value
+  + document.forms["form"]["MPI_PURCH_DATE"].value
+  + document.forms["form"]["MPI_PURCH_CURR"].value
+  + document.forms["form"]["MPI_PURCH_AMT"].value
+  + document.forms["form"]["MPI_RESPONSE_TYPE"].value
+  + document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
+}
+
+function trim_mac() {
+  let macElement = document.forms["form"]["MPI_MAC"];
+  
+  let rawMac = macElement.value;
+  
+  let trimmedMac = rawMac.replace(/[+]/g, "-")
+                         .replace(/[/]/g, "_")
+                         .replace(/[=]/g, "");
+  
+  macElement.value = trimmedMac;
+}
+
+let d = new Date();
+let year = d.getFullYear() ;
+let mth  = d.getMonth() +1;
+ mth = mth.toString().padStart(2, '0');
+let day = d.getDate() ;
+ day = day.toString().padStart(2, '0');
+let hrs = d.getHours() ;
+ hrs = hrs.toString().padStart(2, '0');
+let min = d.getMinutes() ;
+ min = min.toString().padStart(2, '0');
+let sec = d.getSeconds() ;
+ sec = sec.toString().padStart(2, '0');
+ 
+let x = year + mth + day + hrs + min + sec;
+document.forms["form"]["MPI_PURCH_DATE"].value = x;
+
+let y = "PAGUAT" + x;
+document.forms["form"]["MPI_TRXN_ID"].value = y;
+        
     </script>
 </body>
 </html>
