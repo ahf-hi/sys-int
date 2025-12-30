@@ -35,6 +35,13 @@
             <label for="MPI_PURCH_AMT">MPI_PURCH_AMT (Amount):</label>
              <input type="text" name="MPI_PURCH_AMT" id="MPI_PURCH_AMT" maxlength="19" >
 
+           <label for="MPI_RESPONSE_TYPE">MPI_RESPONSE_TYPE:</label>
+            <select name="MPI_RESPONSE_TYPE" id="MPI_RESPONSE_TYPE">
+              <option value=""></option>
+              <option value="JSON">JSON</option>
+              <option value="STRING">STRING</option>
+            </select>
+	 
             <label for="MPI_PAYMENT_CHANNEL_ID">MPI_PAYMENT_CHANNEL_ID:</label>
             <input type="text" name="MPI_PAYMENT_CHANNEL_ID" id="MPI_PAYMENT_CHANNEL_ID" maxlength="30" >
 
@@ -165,6 +172,7 @@ function clear_mac()
   + document.forms["form"]["MPI_PURCH_DATE"].value
   + document.forms["form"]["MPI_PURCH_CURR"].value
   + document.forms["form"]["MPI_PURCH_AMT"].value
+  + document.forms["form"]["MPI_RESPONSE_TYPE"].value
   + document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
 }
 
@@ -204,6 +212,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
