@@ -8,6 +8,8 @@
 <body> 
     <div class="controls">
         <form id="form" method="post" action="">
+            <input type="hidden" name="MPI_RETURN_URL" id="MPI_RETURN_URL" value="">
+
             <label for="MPI_TRANS_TYPE">MPI_TRANS_TYPE (Transaction Type):</label>
             <select name="MPI_TRANS_TYPE" id="MPI_TRANS_TYPE">
                 <option value="SALES">SALES</option>
@@ -51,7 +53,6 @@
         <button onclick="trim_mac()">Trim MAC</button><br><br>
 
         <button onclick="mkReq()">Key Exchange</button>
-		
         <button type="button" onclick="mpReq()">Pay</button>
 
         <div id="frontend-display" style="display:none; margin: 20px; border: 2px solid #000; padding: 20px; background-color: #f9f9f9;">
@@ -71,18 +72,18 @@
         const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB";
 		const VERCEL_CALLBACK_URL = "https://sys-int-nine.vercel.app/api/callback"
 
-        // Initialize default action
+
+        // Pre-set the form action to the Gateway
         document.getElementById("form").action = PAYMENT_REQUEST_URL;
 
         function mpReq() {
             const form = document.getElementById("form");
             const payButton = document.querySelector("button[onclick='mpReq()']");
-            
-            // 1. Point the form to your Vercel Handler to avoid CORS errors
-            // Vercel will act as the middleman to talk to the gateway or process the response
-            form.action = VERCEL_CALLBACK_URL;
 
-            // 2. Disable empty fields so they are excluded from the POST
+            // 1. Set the Return URL so the gateway redirects to Vercel afterward
+            document.getElementById("MPI_RETURN_URL").value = VERCEL_CALLBACK_URL;
+
+            // 2. Loop through and disable empty fields (Required for your MAC logic)
             const inputs = form.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
                 if (!input.value.trim()) {
@@ -91,12 +92,12 @@
             });
 
             payButton.disabled = true;
-            payButton.innerText = "Redirecting...";
+            payButton.innerText = "Redirecting to Gateway...";
 
-            // 3. Standard Form Submit (Bypasses CORS because the browser navigates)
+            // 3. Native Form Submission (This bypasses CORS!)
             form.submit();
 
-            // 4. Cleanup: Re-enable fields in case the user navigates back
+            // Cleanup if the user comes back
             setTimeout(() => {
                 inputs.forEach(input => input.disabled = false);
                 payButton.disabled = false;
@@ -104,21 +105,18 @@
             }, 2000);
         }
 
-        // --- Keep your existing helper functions below ---
-
+        // --- All other functions remain exactly as you had them ---
         function submitToBank(url, jsonDataString) {
-            const form = document.getElementById('redirect-form');
-            form.action = url;
-            form.innerHTML = ""; 
+            const rForm = document.getElementById('redirect-form');
+            rForm.action = url;
+            rForm.innerHTML = ""; 
             const fpxData = JSON.parse(jsonDataString);
             for (let key in fpxData) {
                 let input = document.createElement("input");
-                input.type = "hidden";
-                input.name = key;
-                input.value = fpxData[key];
-                form.appendChild(input);
+                input.type = "hidden"; input.name = key; input.value = fpxData[key];
+                rForm.appendChild(input);
             }
-            form.submit();
+            rForm.submit();
         }
 
         async function mkReq() {
@@ -128,18 +126,12 @@
             myHeaders.append("Content-Type", "application/json");
             const raw = JSON.stringify({ "merchantId": MID, "pubKey": PUBLICKEY, "purchaseId": transactionID });
             const requestOptions = { method: 'POST', headers: myHeaders, body: raw };
-
             try {
                 const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
                 const result = await response.json(); 
-                if (result.errorCode === "000") {
-                    alert(`✅ Success!\nCode: ${result.errorCode}`);
-                } else {
-                    alert(`❌ Failed\nCode: ${result.errorCode}`);
-                }
-            } catch (error) {
-                alert("⚠️ Connection Blocked by CORS.");
-            }
+                if (result.errorCode === "000") { alert(`✅ Success!`); }
+                else { alert(`❌ Failed: ${result.errorCode}`); }
+            } catch (error) { alert("⚠️ Connection Error"); }
         }
 
         function clear_mac() {
@@ -159,7 +151,6 @@
             macElement.value = macElement.value.replace(/[+]/g, "-").replace(/[/]/g, "_").replace(/[=]/g, "");
         }
 
-        // Date and Transaction ID logic
         let d = new Date();
         let x = d.getFullYear() + (d.getMonth() + 1).toString().padStart(2, '0') + d.getDate().toString().padStart(2, '0') + d.getHours().toString().padStart(2, '0') + d.getMinutes().toString().padStart(2, '0') + d.getSeconds().toString().padStart(2, '0');
         document.forms["form"]["MPI_PURCH_DATE"].value = x;
