@@ -157,33 +157,59 @@ async function mkReq() {
     }
 }
 
-function mpReq() {
+async function mpReq() {
     const form = document.getElementById("form");
-    const inputs = form.querySelectorAll('input, select, textarea');
-    const payButton = document.querySelector("button[onclick='mpReq()']");
-
-    // 1. Disable the button to prevent multiple clicks
-    payButton.disabled = true;
-    payButton.innerText = "Processing...";
-
-    // 2. Loop through all fields
-    inputs.forEach(input => {
-        // If the field is empty, disable it so it's excluded from the POST request
-        if (!input.value.trim()) {
-            input.disabled = true;
+    const formData = new FormData(form);
+    
+    // Remove empty fields
+    for (var key of Array.from(formData.keys())) {
+        if (!formData.get(key).trim()) {
+            formData.delete(key);
         }
-    });
+    }
 
-    // 3. Submit the form
-    form.submit();
+    try {
+        // 1. Send request to the Payment Gateway
+        const response = await fetch('GATEWAY_URL_HERE', {
+            method: 'POST',
+            body: formData
+        });
 
-    // 4. Re-enable fields after a short delay
-    // This ensures if the user hits "Back", the form isn't broken
-    setTimeout(() => {
-        inputs.forEach(input => input.disabled = false);
-        payButton.disabled = false;
-        payButton.innerText = "Pay";
-    }, 1000);
+        const data = await response.json(); // The JSON from your screenshot
+
+        // 2. RUN CALLBACK LOGIC (Replaced your backend code with this)
+        handleGatewayResponse(data);
+
+    } catch (error) {
+        console.error("Error:", error);
+    }
+}
+
+function handleGatewayResponse(data) {
+    const queryParams = new URLSearchParams(data).toString();
+    let destination = "";
+
+    // Your logic from callback.js
+    if (data.MPI_REDIRECT_URL && data.MPI_REDIRECT_HTTP_DATA) {
+        destination = "/pag/iframe/redirect-01.html";
+    } else if (data.MPI_REDIRECT_URL) {
+        destination = "/pag/iframe/redirect-02.html";
+    }
+
+    if (destination !== "") {
+        // Instead of res.send(), we manually update the page or redirect
+        // To show the "Response Body" UI like your script intended:
+        document.body.innerHTML = `
+            <div style="max-width: 900px; margin: 0 auto; border: 1px solid #ddd; padding: 30px; border-radius: 4px; font-family: sans-serif;">
+                <h1>Response Body</h1>
+                <pre style="background: #f8f9fa; padding: 20px; word-break: break-all; white-space: pre-wrap;">${JSON.stringify(data, null, 4)}</pre>
+                <a href="${destination}?${queryParams}" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Continue to Form</a>
+            </div>
+        `;
+    } else {
+        // Case C: Redirect to receipt
+        window.location.href = `/payment-status.html?${queryParams}`;
+    }
 }
 
 
@@ -236,6 +262,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
