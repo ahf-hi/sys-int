@@ -72,7 +72,92 @@
 
 
         document.getElementById("form").action = PAYMENT_REQUEST_URL;
+function handlePaymentResponse(queryString) {
+    // 1. Parse the string into an object
+    const params = new URLSearchParams(queryString);
+    
+    const mid = params.get('MPI_MERC_ID');
+    const trxnId = params.get('MPI_TRXN_ID');
+    const desc = params.get('MPI_ERROR_DESC');
+    const redirectUrl = params.get('MPI_REDIRECT_URL');
+    const jsonData = params.get('MPI_REDIRECT_HTTP_DATA');
 
+    // 2. Display the 3 pieces of info
+    document.getElementById('summary-mid').textContent = mid;
+    document.getElementById('summary-trxn').textContent = trxnId;
+    document.getElementById('summary-desc').textContent = desc;
+    document.getElementById('payment-summary').style.display = 'block';
+
+    // 3. Set up the "Proceed" button
+    const proceedBtn = document.getElementById('btn-redirect');
+    proceedBtn.onclick = function() {
+        submitToBank(redirectUrl, jsonData);
+    };
+}
+
+function submitToBank(url, jsonDataString) {
+    const form = document.getElementById('redirect-form');
+    form.action = url;
+    form.innerHTML = ""; // Clear previous inputs
+
+    // Parse the internal FPX JSON data
+    const fpxData = JSON.parse(jsonDataString);
+
+    // Create a hidden input for every key in the FPX data
+    for (let key in fpxData) {
+        if (fpxData.hasOwnProperty(key)) {
+            let input = document.createElement("input");
+            input.type = "hidden";
+            input.name = key;
+            input.value = fpxData[key];
+            form.appendChild(input);
+        }
+    }
+
+    // Submit the form to the bank
+    form.submit();
+}
+
+async function mkReq() {
+    let MID = document.forms["form"]["MPI_MERC_ID"].value;
+    let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
+
+    const myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+    const raw = JSON.stringify({
+        "merchantId": MID,
+        "pubKey": PUBLICKEY,
+        "purchaseId": transactionID
+    });
+
+    const requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+        // mode: 'no-cors' REMOVED to allow reading the body
+    };
+
+    try {
+        const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
+        
+        // This will now work because no-cors is removed
+        const result = await response.json(); 
+
+        // Specific check: errorCode must be exactly "000"
+        if (result.errorCode === "000") {
+            alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
+        } else {
+            alert(`❌ Key Exchange Failed\nError Code: ${result.errorCode}\nMessage: ${result.errorMessage || 'Error'}`);
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert("⚠️ Connection Blocked: The server likely does not allow CORS requests from this domain.");
+    }
+}
+        
 async function mpReq() {
     const form = document.getElementById("form");
     const payButton = document.querySelector("button[onclick='mpReq()']");
