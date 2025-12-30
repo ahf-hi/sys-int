@@ -5,8 +5,8 @@ export default function handler(req, res) {
         const queryParams = new URLSearchParams(data).toString();
 
         let destination = "";
-        if (data.MPI_REDIRECT_URL) {
-            destination = "/pag/iframe/redirect.html";
+        if (data.MPI_REDIRECT_URL && data.MPI_REDIRECT_HTTP_DATA) {
+            destination = "/pag/iframe/redirect-01.html";
         } else if (data.MPI_REDIRECT_URL) {
             destination = "/pag/iframe/redirect-02.html";
         }
