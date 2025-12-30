@@ -157,9 +157,33 @@ async function mkReq() {
     }
 }
 
-function mpReq()
-{
-    document.getElementById("form").submit();
+function mpReq() {
+    const form = document.getElementById("form");
+    const inputs = form.querySelectorAll('input, select, textarea');
+    const payButton = document.querySelector("button[onclick='mpReq()']");
+
+    // 1. Disable the button to prevent multiple clicks
+    payButton.disabled = true;
+    payButton.innerText = "Processing...";
+
+    // 2. Loop through all fields
+    inputs.forEach(input => {
+        // If the field is empty, disable it so it's excluded from the POST request
+        if (!input.value.trim()) {
+            input.disabled = true;
+        }
+    });
+
+    // 3. Submit the form
+    form.submit();
+
+    // 4. Re-enable fields after a short delay
+    // This ensures if the user hits "Back", the form isn't broken
+    setTimeout(() => {
+        inputs.forEach(input => input.disabled = false);
+        payButton.disabled = false;
+        payButton.innerText = "Pay";
+    }, 1000);
 }
 
 
@@ -212,6 +236,7 @@ document.forms["form"]["MPI_TRXN_ID"].value = y;
 
 
 </html>
+
 
 
 
