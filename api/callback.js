@@ -1,0 +1,32 @@
+export default function handler(req, res) {
+    if (req.method === 'POST') {
+        // Vercel parses req.body automatically if sent as JSON or URL-encoded
+        const data = req.body;
+        const queryParams = new URLSearchParams(data).toString();
+
+        let destination = "";
+        if (data.MPI_REDIRECT_URL && data.MPI_REDIRECT_HTTP_DATA) {
+            destination = "/pag/iframe/redirect-01.html";
+        } else if (data.MPI_REDIRECT_URL) {
+            destination = "/pag/iframe/redirect-02.html";
+        }
+
+        if (destination !== "") {
+            res.setHeader('Content-Type', 'text/html');
+            res.status(200).send(`
+                <div class="wrapper" style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px;">
+                    <h1>Response Body</h1>
+                    <pre style="background: #f4f4f4; padding: 15px;">${JSON.stringify(data, null, 4)}</pre>
+                    <a href="${destination}?${queryParams}" 
+                       style="background: black; color: white; padding: 10px; text-decoration: none;">
+                       Continue to Form
+                    </a>
+                </div>
+            `);
+        } else {
+            res.redirect(302, `/payment-status.html?${queryParams}`);
+        }
+    } else {
+        res.status(405).json({ error: "Method Not Allowed" });
+    }
+}
