@@ -51,6 +51,7 @@
         <button onclick="trim_mac()">Trim MAC</button><br><br>
 
         <button onclick="mkReq()">Key Exchange</button>
+		
         <button type="button" onclick="mpReq()">Pay</button>
 
         <div id="frontend-display" style="display:none; margin: 20px; border: 2px solid #000; padding: 20px; background-color: #f9f9f9;">
@@ -64,191 +65,105 @@
     </div>
 
     <script>
-        // Use your actual URLs here
         const KEY_EXCHANGE_URL = "https://devlinkv2.paydee.co/mpigw/mkReq";
         const PAYMENT_REQUEST_URL = "https://devlinkv2.paydee.co/mpigw/mpReq";
         const GET_CHANNEL_URL = "https://devlinkv2.paydee.co/mpigw/channels";
         const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB"
 
 
+        // Initialize default action
         document.getElementById("form").action = PAYMENT_REQUEST_URL;
-function handlePaymentResponse(queryString) {
-    // 1. Parse the string into an object
-    const params = new URLSearchParams(queryString);
-    
-    const mid = params.get('MPI_MERC_ID');
-    const trxnId = params.get('MPI_TRXN_ID');
-    const desc = params.get('MPI_ERROR_DESC');
-    const redirectUrl = params.get('MPI_REDIRECT_URL');
-    const jsonData = params.get('MPI_REDIRECT_HTTP_DATA');
 
-    // 2. Display the 3 pieces of info
-    document.getElementById('summary-mid').textContent = mid;
-    document.getElementById('summary-trxn').textContent = trxnId;
-    document.getElementById('summary-desc').textContent = desc;
-    document.getElementById('payment-summary').style.display = 'block';
+        function mpReq() {
+            const form = document.getElementById("form");
+            const payButton = document.querySelector("button[onclick='mpReq()']");
+            
+            // 1. Point the form to your Vercel Handler to avoid CORS errors
+            // Vercel will act as the middleman to talk to the gateway or process the response
+            form.action = VERCEL_CALLBACK_URL;
 
-    // 3. Set up the "Proceed" button
-    const proceedBtn = document.getElementById('btn-redirect');
-    proceedBtn.onclick = function() {
-        submitToBank(redirectUrl, jsonData);
-    };
-}
+            // 2. Disable empty fields so they are excluded from the POST
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    input.disabled = true;
+                }
+            });
 
-function submitToBank(url, jsonDataString) {
-    const form = document.getElementById('redirect-form');
-    form.action = url;
-    form.innerHTML = ""; // Clear previous inputs
+            payButton.disabled = true;
+            payButton.innerText = "Redirecting...";
 
-    // Parse the internal FPX JSON data
-    const fpxData = JSON.parse(jsonDataString);
+            // 3. Standard Form Submit (Bypasses CORS because the browser navigates)
+            form.submit();
 
-    // Create a hidden input for every key in the FPX data
-    for (let key in fpxData) {
-        if (fpxData.hasOwnProperty(key)) {
-            let input = document.createElement("input");
-            input.type = "hidden";
-            input.name = key;
-            input.value = fpxData[key];
-            form.appendChild(input);
-        }
-    }
-
-    // Submit the form to the bank
-    form.submit();
-}
-
-async function mkReq() {
-    let MID = document.forms["form"]["MPI_MERC_ID"].value;
-    let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
-
-    const myHeaders = new Headers();
-    myHeaders.append("Content-Type", "application/json");
-
-    const raw = JSON.stringify({
-        "merchantId": MID,
-        "pubKey": PUBLICKEY,
-        "purchaseId": transactionID
-    });
-
-    const requestOptions = {
-        method: 'POST',
-        headers: myHeaders,
-        body: raw,
-        redirect: 'follow'
-        // mode: 'no-cors' REMOVED to allow reading the body
-    };
-
-    try {
-        const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
-        
-        // This will now work because no-cors is removed
-        const result = await response.json(); 
-
-        // Specific check: errorCode must be exactly "000"
-        if (result.errorCode === "000") {
-            alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
-        } else {
-            alert(`❌ Key Exchange Failed\nError Code: ${result.errorCode}\nMessage: ${result.errorMessage || 'Error'}`);
+            // 4. Cleanup: Re-enable fields in case the user navigates back
+            setTimeout(() => {
+                inputs.forEach(input => input.disabled = false);
+                payButton.disabled = false;
+                payButton.innerText = "Pay";
+            }, 2000);
         }
 
-    } catch (error) {
-        console.error('Error:', error);
-        alert("⚠️ Connection Blocked: The server likely does not allow CORS requests from this domain.");
-    }
-}
-        
-async function mpReq() {
-    const form = document.getElementById("form");
-    const payButton = document.querySelector("button[onclick='mpReq()']");
-    
-    // 1. Clean data (exclude empty fields)
-    const formData = new FormData(form);
-    const params = new URLSearchParams();
-    for (const [key, value] of formData.entries()) {
-        if (value.trim() !== "") {
-            params.append(key, value);
+        // --- Keep your existing helper functions below ---
+
+        function submitToBank(url, jsonDataString) {
+            const form = document.getElementById('redirect-form');
+            form.action = url;
+            form.innerHTML = ""; 
+            const fpxData = JSON.parse(jsonDataString);
+            for (let key in fpxData) {
+                let input = document.createElement("input");
+                input.type = "hidden";
+                input.name = key;
+                input.value = fpxData[key];
+                form.appendChild(input);
+            }
+            form.submit();
         }
-    }
 
-    payButton.disabled = true;
-    payButton.innerText = "Processing...";
+        async function mkReq() {
+            let MID = document.forms["form"]["MPI_MERC_ID"].value;
+            let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+            const raw = JSON.stringify({ "merchantId": MID, "pubKey": PUBLICKEY, "purchaseId": transactionID });
+            const requestOptions = { method: 'POST', headers: myHeaders, body: raw };
 
-    try {
-        // 2. The Fetch call (This keeps you on the page!)
-        const response = await fetch(PAYMENT_REQUEST_URL, {
-            method: 'POST',
-            body: params,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
+            try {
+                const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
+                const result = await response.json(); 
+                if (result.errorCode === "000") {
+                    alert(`✅ Success!\nCode: ${result.errorCode}`);
+                } else {
+                    alert(`❌ Failed\nCode: ${result.errorCode}`);
+                }
+            } catch (error) {
+                alert("⚠️ Connection Blocked by CORS.");
+            }
+        }
 
-        // 3. Force the response into your hidden div
-        const data = await response.json();
-        
-        // Populate the fields
-        document.getElementById('view-mid').innerText = data.MPI_MERC_ID || "N/A";
-        document.getElementById('view-txid').innerText = data.MPI_TRXN_ID || "N/A";
-        
-        // Show the hidden section
-        document.getElementById('frontend-display').style.display = 'block';
-        
-        // Scroll down to show the result
-        document.getElementById('frontend-display').scrollIntoView();
+        function clear_mac() {
+            document.getElementById("mac").innerHTML = 
+                document.forms["form"]["MPI_TRANS_TYPE"].value + 
+                document.forms["form"]["MPI_MERC_ID"].value + 
+                document.forms["form"]["MPI_TRXN_ID"].value +
+                document.forms["form"]["MPI_PURCH_DATE"].value +
+                document.forms["form"]["MPI_PURCH_CURR"].value +
+                document.forms["form"]["MPI_PURCH_AMT"].value +
+                document.forms["form"]["MPI_RESPONSE_TYPE"].value +
+                document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
+        }
 
-    } catch (error) {
-        console.error("Error:", error);
-        alert("CORS Error: The payment server does not allow reading data directly via JavaScript.");
-    } finally {
-        payButton.disabled = false;
-        payButton.innerText = "Pay";
-    }
-}
+        function trim_mac() {
+            let macElement = document.forms["form"]["MPI_MAC"];
+            macElement.value = macElement.value.replace(/[+]/g, "-").replace(/[/]/g, "_").replace(/[=]/g, "");
+        }
 
-
-function clear_mac() 
-{
-  document.getElementById("mac").innerHTML = 
-    document.forms["form"]["MPI_TRANS_TYPE"].value 
-  + document.forms["form"]["MPI_MERC_ID"].value 
-  + document.forms["form"]["MPI_TRXN_ID"].value
-  + document.forms["form"]["MPI_PURCH_DATE"].value
-  + document.forms["form"]["MPI_PURCH_CURR"].value
-  + document.forms["form"]["MPI_PURCH_AMT"].value
-  + document.forms["form"]["MPI_RESPONSE_TYPE"].value
-  + document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
-}
-
-function trim_mac() {
-  let macElement = document.forms["form"]["MPI_MAC"];
-  
-  let rawMac = macElement.value;
-  
-  let trimmedMac = rawMac.replace(/[+]/g, "-")
-                         .replace(/[/]/g, "_")
-                         .replace(/[=]/g, "");
-  
-  macElement.value = trimmedMac;
-}
-
-let d = new Date();
-let year = d.getFullYear() ;
-let mth  = d.getMonth() +1;
- mth = mth.toString().padStart(2, '0');
-let day = d.getDate() ;
- day = day.toString().padStart(2, '0');
-let hrs = d.getHours() ;
- hrs = hrs.toString().padStart(2, '0');
-let min = d.getMinutes() ;
- min = min.toString().padStart(2, '0');
-let sec = d.getSeconds() ;
- sec = sec.toString().padStart(2, '0');
- 
-let x = year + mth + day + hrs + min + sec;
-document.forms["form"]["MPI_PURCH_DATE"].value = x;
-
-let y = "PAGUAT" + x;
-document.forms["form"]["MPI_TRXN_ID"].value = y;
-        
+        // Date and Transaction ID logic
+        let d = new Date();
+        let x = d.getFullYear() + (d.getMonth() + 1).toString().padStart(2, '0') + d.getDate().toString().padStart(2, '0') + d.getHours().toString().padStart(2, '0') + d.getMinutes().toString().padStart(2, '0') + d.getSeconds().toString().padStart(2, '0');
+        document.forms["form"]["MPI_PURCH_DATE"].value = x;
+        document.forms["form"]["MPI_TRXN_ID"].value = "PAGUAT" + x;
     </script>
 </body>
 </html>
