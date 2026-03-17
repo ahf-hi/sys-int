@@ -34,68 +34,65 @@ BjUoANFzgScOUTPCSQACXQ==
  * 1. TRIGGER INQUIRY (INQ)
  * Called when user clicks "Check Status"
  */
-async function triggerInquiry() {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Check for correct keys (MPI_TRXN_ID used by host response)
-    const originalTrxnId = params.get('MPI_TRXN_ID');
-    const amount = params.get('MPI_PURCH_AMT');
+// ... Configuration (Keys/URL) stays the same as before ...
 
-    // UI Feedback
+async function triggerInquiry() {
+    // 1. GET DATA FROM USER INPUTS
+    const originalTrxnId = document.getElementById('manual_trxn_id').value.trim();
+    const amount = document.getElementById('manual_amount').value.trim();
+
     const statusLabel = document.getElementById("inquiry-status-text");
-    if (statusLabel) statusLabel.innerText = "Processing inquiry...";
 
     if (!originalTrxnId || !amount) {
-        console.error("Missing Params:", { originalTrxnId, amount });
-        alert("Reference Data Missing: Ensure MPI_TRXN_ID and MPI_PURCH_AMT are in the URL.");
+        alert("Please enter both Transaction ID and Amount.");
         return;
     }
 
-    // Generate Inquiry Meta Data
-    const d = new Date();
-    const ts = d.getFullYear() + 
-               (d.getMonth() + 1).toString().padStart(2, '0') + 
-               d.getDate().toString().padStart(2, '0') + 
-               d.getHours().toString().padStart(2, '0') + 
-               d.getMinutes().toString().padStart(2, '0') + 
-               d.getSeconds().toString().padStart(2, '0');
-    
-    const inqTrxnId = "INQ" + ts;
+    if (statusLabel) statusLabel.innerText = "Checking status...";
 
-    // Map to Hidden Form
+    // 2. Generate Metadata
+    const d = new Date();
+    const ts = d.getFullYear() + (d.getMonth() + 1).toString().padStart(2, '0') + 
+               d.getDate().toString().padStart(2, '0') + d.getHours().toString().padStart(2, '0') + 
+               d.getMinutes().toString().padStart(2, '0') + d.getSeconds().toString().padStart(2, '0');
+    
+    const inqId = "INQ" + ts;
+
+    // 3. Map to Hidden Form
     document.getElementById("INQ_PURCH_DATE").value = ts;
-    document.getElementById("INQ_TRXN_ID").value = inqTrxnId;
+    document.getElementById("INQ_TRXN_ID").value = inqId;
     document.getElementById("INQ_ORI_TRXN_ID").value = originalTrxnId;
     document.getElementById("INQ_PURCH_AMT").value = amount;
 
     try {
-        // Step A: Key Exchange for the new Inquiry Transaction
+        // Step A: Key Exchange
         const mkRes = await fetch(KEY_EXCHANGE_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 "merchantId": "000000000000006",
                 "pubKey": PUBLICKEY,
-                "purchaseId": inqTrxnId
+                "purchaseId": inqId
             })
         });
         const mkResult = await mkRes.json();
         if (mkResult.errorCode !== "000") throw new Error("Key Exchange Failed");
 
-        // Step B: Sign the INQ Request
-        // Format: TYPE + MERC_ID + TRXN_ID + DATE + CURR + AMT
-        const rawData = "INQ" + "000000000000006" + inqTrxnId + ts + "458" + amount;
+        // Step B: RSA Sign
+        const rawData = "INQ" + "000000000000006" + inqId + ts + "458" + amount;
         const signature = await signData(rawData, PRIVATE_KEY_PEM);
         document.getElementById("INQ_MAC").value = signature;
 
-        // Step C: Submit to hidden iframe
+        // Step C: Submit
         document.getElementById("inq-form").submit();
 
     } catch (err) {
-        console.error("Inquiry Error:", err);
-        if (statusLabel) statusLabel.innerText = "Error during inquiry.";
+        console.error(err);
+        if (statusLabel) statusLabel.innerText = "Error: " + err.message;
     }
 }
+
+// ... signData and window listener remain the same ...
 
 /**
  * 2. RSA SIGNING UTILITIES
