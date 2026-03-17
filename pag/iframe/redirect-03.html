@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment QR Code</title>
+    <link rel="stylesheet" href="../css/form.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: flex-end; 
+            align-items: center;      
+            min-height: 100vh;
+            margin: 0;
+            padding-right: 10%;       
+            background-color: #f4f4f9; 
+        }
+
+        .payment-container {
+            width: 400px;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .qr-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        #qr-code-image {
+            width: 250px;
+            height: 250px;
+            margin: 20px auto;
+            display: none; 
+            border: 1px solid #eee;
+        }
+
+        .timer-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: #d9534f;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 10px 0;
+        }
+
+        .instruction-text {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        #status-indicator {
+            font-size: 14px;
+            color: #007bff;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="payment-container">
+        <h1 id="h1_style" style="margin-bottom: 20px; border-radius: 8px;">Scan to Pay</h1>
+        
+        <div class="qr-card" id="qr-section" style="display: none;">
+            <p class="instruction-text">Please scan this QR with your DuitNow account.</p>
+            
+            <img id="qr-code-image" src="" alt="Payment QR">
+            
+            <div class="timer-label" style="color: #666; font-size: 12px; text-transform: uppercase;">
+                Valid for:
+            </div>
+            <div id="countdown-display" class="timer-display">00:00</div>
+            
+            <div id="status-indicator">Waiting for payment...</div>
+
+            <p style="font-size: 13px; color: #888; margin-top: 15px;">
+                Reference ID: <span id="ref-id">--</span>
+            </p>
+        </div>
+
+        <div id="error-box" style="display: none; color: red; background: white; padding: 20px; border-radius: 8px;">
+            <h3>Data Missing</h3>
+            <p>Unable to load payment information. Please return to the previous page.</p>
+        </div>
+    </div>
+
+    <script>
+        let paymentInterval; // Global variable for the timer
+
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const qrData = params.get('MPI_QR_CODE');
+            const expiry = params.get('MPI_QR_EXPIRY_SECONDS');
+            const ref = params.get('MPI_TXN_ID') || "N/A";
+            
+            document.getElementById('ref-id').textContent = ref;
+
+            if (qrData && expiry) {
+                startPaymentFlow(qrData, expiry);
+                // Start checking status every 5 seconds
+                startPolling(ref);
+            } else {
+                document.getElementById('error-box').style.display = 'block';
+            }
+        };
+
+        function startPaymentFlow(base64, seconds) {
+            const qrImg = document.getElementById('qr-code-image');
+            const display = document.getElementById('countdown-display');
+            const section = document.getElementById('qr-section');
+
+            qrImg.src = "data:image/png;base64," + base64;
+            qrImg.style.display = "block";
+            section.style.display = "block";
+
+            let timeLeft = parseInt(seconds);
+
+            paymentInterval = setInterval(() => {
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+
+                display.textContent = 
+                    (mins < 10 ? "0" + mins : mins) + ":" + 
+                    (secs < 10 ? "0" + secs : secs);
+
+                if (--timeLeft < 0) {
+                    stopEverything("EXPIRED");
+                }
+            }, 1000);
+        }
+
+        function startPolling(txnId) {
+            // Check every 5 seconds
+            const pollTimer = setInterval(async () => {
+                try {
+                    // You'll need an endpoint that returns the status of this TXN_ID
+                    // This is a placeholder for your actual status check URL
+                    const response = await fetch(`/api/check-status?MPI_TXN_ID=${txnId}`);
+                    const result = await response.json();
+
+                    if (result.status === "SUCCESS") {
+                        clearInterval(pollTimer);
+                        stopEverything("SUCCESS");
+                        
+                        // Redirect to success page
+                        const query = new URLSearchParams(window.location.search).toString();
+                        window.location.href = `/payment-status.html?${query}&status=SUCCESS`;
+                    }
+                } catch (error) {
+                    console.error("Polling error:", error);
+                }
+            }, 5000);
+        }
+
+        function stopEverything(reason) {
+            clearInterval(paymentInterval);
+            const display = document.getElementById('countdown-display');
+            const qrImg = document.getElementById('qr-code-image');
+            const indicator = document.getElementById('status-indicator');
+
+            if (reason === "EXPIRED") {
+                display.textContent = "EXPIRED";
+                display.style.color = "#aaa";
+                qrImg.style.filter = "grayscale(100%) blur(2px)";
+                qrImg.style.opacity = "0.3";
+                indicator.textContent = "Code expired. Please restart.";
+                indicator.style.color = "red";
+            } else if (reason === "SUCCESS") {
+                display.textContent = "PAID";
+                display.style.color = "#28a745";
+                indicator.textContent = "Payment Verified! Redirecting...";
+                indicator.style.color = "#28a745";
+            }
+        }
+    </script>
+</body>
+</html>
