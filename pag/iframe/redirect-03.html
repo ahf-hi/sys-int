@@ -90,22 +90,27 @@
     <script>
         let paymentInterval; // Global variable for the timer
 
-        window.onload = function() {
-            const params = new URLSearchParams(window.location.search);
-            const qrData = params.get('MPI_QR_CODE');
-            const expiry = params.get('MPI_QR_EXPIRY_SECONDS');
-            const ref = params.get('MPI_TXN_ID') || "N/A";
-            
-            document.getElementById('ref-id').textContent = ref;
+window.onload = function() {
+    // 1. Get data from URL (passed by callback.js)
+    const params = new URLSearchParams(window.location.search);
+    
+    const qrData = params.get('MPI_QR_CODE');
+    const expiry = params.get('MPI_QR_EXPIRY_SECONDS');
+    
+    // FIX: Changed MPI_TXN_ID to MPI_TRXN_ID to match your host response
+    const ref = params.get('MPI_TRXN_ID') || "N/A";
+    
+    // Update the UI with the reference ID
+    document.getElementById('ref-id').textContent = ref;
 
-            if (qrData && expiry) {
-                startPaymentFlow(qrData, expiry);
-                // Start checking status every 5 seconds
-                startPolling(ref);
-            } else {
-                document.getElementById('error-box').style.display = 'block';
-            }
-        };
+    if (qrData && expiry) {
+        startPaymentFlow(qrData, expiry);
+        // Start polling using the correct reference ID
+        startPolling(ref);
+    } else {
+        document.getElementById('error-box').style.display = 'block';
+    }
+};
 
         function startPaymentFlow(base64, seconds) {
             const qrImg = document.getElementById('qr-code-image');
