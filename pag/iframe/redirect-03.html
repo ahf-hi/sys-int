@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment QR Code</title>
+    <link rel="stylesheet" href="../css/form.css">
+    <style>
+        body { display: flex; justify-content: flex-end; align-items: center; min-height: 100vh; margin: 0; padding-right: 10%; background-color: #f4f4f9; }
+        .payment-container { width: 400px; text-align: center; }
+        .qr-card { background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #qr-code-image { width: 250px; height: 250px; margin: 20px auto; display: none; border: 1px solid #eee; }
+        .timer-display { font-size: 32px; font-weight: bold; color: #d9534f; margin: 10px 0; font-family: monospace; }
+        .btn-check { margin-top: 20px; padding: 10px 20px; background: #000; color: #fff; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="payment-container">
+        <h1 id="h1_style">DuitNow QR</h1>
+        <div class="qr-card" id="qr-section" style="display: none;">
+            <p>Scan with your banking app</p>
+            <img id="qr-code-image" src="">
+            <div id="countdown-display" class="timer-display">00:00</div>
+            
+            <button class="btn-check" onclick="triggerInquiry()">Check Status Now</button>
+            <p id="inquiry-status-text" style="font-size: 14px; color: #007bff; margin-top: 10px;"></p>
+            
+            <p style="font-size: 12px; color: #888;">Ref: <span id="ref-id"></span></p>
+        </div>
+    </div>
+
+    <form id="inq-form" method="post" action="https://devlinkv2.paydee.co/mpigw/mercReq" target="inq_frame" style="display:none;">
+        <input type="hidden" name="MPI_RETURN_URL" value="https://sys-int-nine.vercel.app/api/callback">
+        <input type="hidden" name="MPI_TRANS_TYPE" value="INQ">
+        <input type="hidden" name="MPI_MERC_ID" value="000000000000006">
+        <input type="hidden" name="MPI_PURCH_DATE" id="INQ_PURCH_DATE">
+        <input type="hidden" name="MPI_TRXN_ID" id="INQ_TRXN_ID">
+        <input type="hidden" name="MPI_ORI_TRXN_ID" id="INQ_ORI_TRXN_ID">
+        <input type="hidden" name="MPI_PURCH_CURR" value="458">
+        <input type="hidden" name="MPI_PURCH_AMT" id="INQ_PURCH_AMT">
+        <textarea name="MPI_MAC" id="INQ_MAC"></textarea>
+    </form>
+    <iframe name="inq_frame" style="display:none;"></iframe>
+
+    <script src="inquiry-handler.js"></script>
+    <script>
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const qr = params.get('MPI_QR_CODE');
+            const expiry = params.get('MPI_QR_EXPIRY_SECONDS');
+            document.getElementById('ref-id').textContent = params.get('MPI_TRXN_ID');
+
+            if (qr && expiry) {
+                document.getElementById('qr-code-image').src = "data:image/png;base64," + qr;
+                document.getElementById('qr-code-image').style.display = "block";
+                document.getElementById('qr-section').style.display = "block";
+                startTimer(parseInt(expiry));
+            }
+        };
+
+        function startTimer(seconds) {
+            let timer = seconds;
+            const display = document.getElementById('countdown-display');
+            setInterval(() => {
+                let m = Math.floor(timer / 60).toString().padStart(2, '0');
+                let s = (timer % 60).toString().padStart(2, '0');
+                display.textContent = `${m}:${s}`;
+                if (--timer < 0) timer = 0;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
