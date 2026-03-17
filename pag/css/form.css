@@ -309,3 +309,39 @@ body {
     cursor: not-allowed;
 }
 
+/* QR Section Styling */
+.qr-container {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#qr-code-image {
+    width: 200px;
+    height: 200px;
+    margin: 15px auto;
+    display: none; /* Hidden until Base64 data is injected */
+    border: 1px solid #eee;
+}
+
+.timer-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #d9534f; /* Red alert color */
+    font-family: monospace;
+    margin-top: 5px;
+}
+
+.timer-label {
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
