@@ -1,6 +1,5 @@
 // --- CONFIGURATION ---
 const KEY_EXCHANGE_URL = "https://devlinkv2.paydee.co/mpigw/mkReq";
-const PAYMENT_REQUEST_URL = "https://devlinkv2.paydee.co/mpigw/mercReq";
 const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB";
 const PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
 MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCryPZIcd/MwuWF
@@ -31,77 +30,112 @@ SL+FRlqBUM8bvGHdPzXV8CLr5NlItcINVHiCO70UmTCNx7b0Ga3vFsVhG8h9VQZu
 BjUoANFzgScOUTPCSQACXQ==
 -----END PRIVATE KEY-----`;
 
+/**
+ * 1. TRIGGER INQUIRY (INQ)
+ * Called when user clicks "Check Status"
+ */
 async function triggerInquiry() {
     const params = new URLSearchParams(window.location.search);
+    
+    // Check for correct keys (MPI_TRXN_ID used by host response)
     const originalTrxnId = params.get('MPI_TRXN_ID');
     const amount = params.get('MPI_PURCH_AMT');
 
+    // UI Feedback
+    const statusLabel = document.getElementById("inquiry-status-text");
+    if (statusLabel) statusLabel.innerText = "Processing inquiry...";
+
     if (!originalTrxnId || !amount) {
-        alert("Reference Data Missing");
+        console.error("Missing Params:", { originalTrxnId, amount });
+        alert("Reference Data Missing: Ensure MPI_TRXN_ID and MPI_PURCH_AMT are in the URL.");
         return;
     }
 
-    // 1. Generate Timestamp and New INQ ID
-    let d = new Date();
-    let ts = d.getFullYear() + (d.getMonth() + 1).toString().padStart(2, '0') + 
-             d.getDate().toString().padStart(2, '0') + d.getHours().toString().padStart(2, '0') + 
-             d.getMinutes().toString().padStart(2, '0') + d.getSeconds().toString().padStart(2, '0');
+    // Generate Inquiry Meta Data
+    const d = new Date();
+    const ts = d.getFullYear() + 
+               (d.getMonth() + 1).toString().padStart(2, '0') + 
+               d.getDate().toString().padStart(2, '0') + 
+               d.getHours().toString().padStart(2, '0') + 
+               d.getMinutes().toString().padStart(2, '0') + 
+               d.getSeconds().toString().padStart(2, '0');
     
-    let inqId = "INQ" + ts;
+    const inqTrxnId = "INQ" + ts;
 
-    // 2. Set Form Values
+    // Map to Hidden Form
     document.getElementById("INQ_PURCH_DATE").value = ts;
-    document.getElementById("INQ_TRXN_ID").value = inqId;
+    document.getElementById("INQ_TRXN_ID").value = inqTrxnId;
     document.getElementById("INQ_ORI_TRXN_ID").value = originalTrxnId;
     document.getElementById("INQ_PURCH_AMT").value = amount;
 
     try {
-        // 3. Key Exchange (mkReq)
+        // Step A: Key Exchange for the new Inquiry Transaction
         const mkRes = await fetch(KEY_EXCHANGE_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 "merchantId": "000000000000006",
                 "pubKey": PUBLICKEY,
-                "purchaseId": inqId
+                "purchaseId": inqTrxnId
             })
         });
         const mkResult = await mkRes.json();
         if (mkResult.errorCode !== "000") throw new Error("Key Exchange Failed");
 
-        // 4. Sign Data
-        const rawData = "INQ" + "000000000000006" + inqId + ts + "458" + amount;
+        // Step B: Sign the INQ Request
+        // Format: TYPE + MERC_ID + TRXN_ID + DATE + CURR + AMT
+        const rawData = "INQ" + "000000000000006" + inqTrxnId + ts + "458" + amount;
         const signature = await signData(rawData, PRIVATE_KEY_PEM);
         document.getElementById("INQ_MAC").value = signature;
 
-        // 5. Submit Hidden Form
+        // Step C: Submit to hidden iframe
         document.getElementById("inq-form").submit();
+
     } catch (err) {
-        console.error(err);
-        alert("Error checking status.");
+        console.error("Inquiry Error:", err);
+        if (statusLabel) statusLabel.innerText = "Error during inquiry.";
     }
 }
 
-// Support functions for RSA
+/**
+ * 2. RSA SIGNING UTILITIES
+ */
 async function signData(message, pem) {
     const encoder = new TextEncoder();
     const data = encoder.encode(message);
     const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n|\r/g, '');
     const binaryKey = Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
-    const privateKey = await window.crypto.subtle.importKey("pkcs8", binaryKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+    
+    const privateKey = await window.crypto.subtle.importKey(
+        "pkcs8",
+        binaryKey,
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        false,
+        ["sign"]
+    );
+
     const signature = await window.crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, data);
-    return btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    
+    return btoa(String.fromCharCode(...new Uint8Array(signature)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Global Listener for Callback response
+/**
+ * 3. LISTEN FOR CALLBACK RESPONSE (postMessage)
+ */
 window.addEventListener("message", function(event) {
+    // Safety check for origin can be added here if needed
     const data = event.data;
-    const statusMsg = document.getElementById("inquiry-status-text");
-    
+    const statusLabel = document.getElementById("inquiry-status-text");
+
     if (data.MPI_ERROR_CODE === "004") {
-        if(statusMsg) statusMsg.innerText = "Transaction in-processing...";
-    } else {
+        if (statusLabel) {
+            statusLabel.innerText = "Transaction in-processing...";
+            statusLabel.style.color = "orange";
+        }
+    } else if (data.MPI_ERROR_CODE) {
+        // Any status other than 004 means finality (Success or Fail)
         const query = new URLSearchParams(data).toString();
-        window.location.href = "/payment-status.html?" + query;
+        window.location.href = `/payment-status.html?${query}`;
     }
 });
