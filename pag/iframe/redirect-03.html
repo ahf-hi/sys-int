@@ -2,30 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Payment QR Code</title>
+    <title>Payment Status Inquiry</title>
     <link rel="stylesheet" href="../css/form.css">
     <style>
-        body { display: flex; justify-content: flex-end; align-items: center; min-height: 100vh; margin: 0; padding-right: 10%; background-color: #f4f4f9; }
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f4f4f9; font-family: sans-serif; }
         .payment-container { width: 400px; text-align: center; }
         .qr-card { background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #qr-code-image { width: 250px; height: 250px; margin: 20px auto; display: none; border: 1px solid #eee; }
-        .timer-display { font-size: 32px; font-weight: bold; color: #d9534f; margin: 10px 0; font-family: monospace; }
-        .btn-check { margin-top: 20px; padding: 10px 20px; background: #000; color: #fff; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+        .input-group { text-align: left; margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .btn-check { margin-top: 10px; padding: 12px; background: #000; color: #fff; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn-check:hover { background: #333; }
+        #qr-code-image { width: 200px; height: 200px; margin: 10px auto; display: none; }
     </style>
 </head>
 <body>
 
     <div class="payment-container">
-        <h1 id="h1_style">DuitNow QR</h1>
-        <div class="qr-card" id="qr-section" style="display: none;">
-            <p>Scan with your banking app</p>
-            <img id="qr-code-image" src="">
-            <div id="countdown-display" class="timer-display">00:00</div>
-            
+        <h2>Check Payment Status</h2>
+        <div class="qr-card">
+            <div id="qr-display-area">
+                <img id="qr-code-image" src="">
+                <p id="ref-display" style="font-size: 13px; color: #666;"></p>
+            </div>
+
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+            <div class="input-group">
+                <label>ORIGINAL TRANSACTION ID</label>
+                <input type="text" id="manual_trxn_id" placeholder="e.g. PAGUAT2026...">
+            </div>
+
+            <div class="input-group">
+                <label>AMOUNT (IN CENTS)</label>
+                <input type="number" id="manual_amount" placeholder="e.g. 100 for RM1.00">
+            </div>
+
             <button class="btn-check" onclick="triggerInquiry()">Check Status Now</button>
             <p id="inquiry-status-text" style="font-size: 14px; color: #007bff; margin-top: 10px;"></p>
-            
-            <p style="font-size: 12px; color: #888;">Ref: <span id="ref-id"></span></p>
         </div>
     </div>
 
@@ -40,47 +54,26 @@
         <input type="hidden" name="MPI_PURCH_AMT" id="INQ_PURCH_AMT">
         <textarea name="MPI_MAC" id="INQ_MAC"></textarea>
     </form>
-    <iframe name="inq_frame" id="inq_frame" style="display:none;"></iframe>
+    <iframe name="inq_frame" style="display:none;"></iframe>
 
     <script src="inquiry-handler.js"></script>
     <script>
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const qr = params.get('MPI_QR_CODE');
-            const expiry = params.get('MPI_QR_EXPIRY_SECONDS');
-            const trxnId = params.get('MPI_TRXN_ID') || params.get('MPI_TXN_ID');
-            
-            // Display Ref ID
-            document.getElementById('ref-id').textContent = trxnId;
+            const tid = params.get('MPI_TRXN_ID') || params.get('MPI_TXN_ID');
+            const amt = params.get('MPI_PURCH_AMT');
 
-            // --- RECOVERY LOGIC ---
-            // If the URL is missing the amount, save the TRXN_ID to session 
-            // so we can match it later if we need to.
-            if (trxnId) {
-                sessionStorage.setItem('LAST_TRXN_ID', trxnId);
-            }
+            // Auto-fill inputs if data IS in the URL
+            if (tid) document.getElementById('manual_trxn_id').value = tid;
+            if (amt) document.getElementById('manual_amount').value = amt;
 
-            if (qr && expiry) {
+            if (qr) {
                 document.getElementById('qr-code-image').src = "data:image/png;base64," + qr;
                 document.getElementById('qr-code-image').style.display = "block";
-                document.getElementById('qr-section').style.display = "block";
-                startTimer(parseInt(expiry));
+                document.getElementById('ref-display').innerText = "Ref: " + tid;
             }
         };
-
-        function startTimer(seconds) {
-            let timer = seconds;
-            const display = document.getElementById('countdown-display');
-            const interval = setInterval(() => {
-                let m = Math.floor(timer / 60).toString().padStart(2, '0');
-                let s = (timer % 60).toString().padStart(2, '0');
-                display.textContent = `${m}:${s}`;
-                if (--timer < 0) {
-                    clearInterval(interval);
-                    display.textContent = "EXPIRED";
-                }
-            }, 1000);
-        }
     </script>
 </body>
 </html>
