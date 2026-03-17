@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Payment Gateway</title>
+    <link rel="stylesheet" href="../css/form.css">
+</head>
+<body>
+
+    <h1 id="h1_style">Payment Verification</h1>
+
+    <div class="p_style">
+        <p>Please use your mobile banking or e-wallet app to scan the QR code below to complete your transaction.</p>
+        
+        <div id="qr-section" class="qr-container" style="display: none;">
+            <h3>Scan to Pay</h3>
+            
+            <img id="qr-code-image" src="" alt="Payment QR Code">
+            
+            <div class="timer-label">This code will expire in:</div>
+            <div id="countdown-display" class="timer-text">00:00</div>
+        </div>
+    </div>
+
+    <div class="p2_style">
+        <div id="response-container">
+            <p><strong>Note:</strong> Do not close this window until the payment is confirmed on your app.</p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Core logic to render the QR and start the mm:ss countdown
+         */
+        function initializeQR(base64Data, expirySeconds) {
+            const qrSection = document.getElementById('qr-section');
+            const qrImg = document.getElementById('qr-code-image');
+            const timerDisplay = document.getElementById('countdown-display');
+
+            // 1. Set Image Source (Prefixing Base64 correctly)
+            qrImg.src = "data:image/png;base64," + base64Data;
+            qrImg.style.display = "block";
+            qrSection.style.display = "block";
+
+            // 2. Countdown Logic
+            let timeLeft = parseInt(expirySeconds);
+
+            // Safety: Clear any existing intervals
+            if (window.paymentInterval) clearInterval(window.paymentInterval);
+
+            window.paymentInterval = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+
+                // Format as 00:00
+                const mm = minutes.toString().padStart(2, '0');
+                const ss = seconds.toString().padStart(2, '0');
+
+                timerDisplay.textContent = `${mm}:${ss}`;
+
+                if (--timeLeft < 0) {
+                    clearInterval(window.paymentInterval);
+                    timerDisplay.textContent = "EXPIRED";
+                    timerDisplay.style.color = "#888";
+                    qrImg.style.opacity = "0.2";
+                    qrImg.style.filter = "grayscale(100%)";
+                }
+            }, 1000);
+        }
+
+        /**
+         * The Bridge: Runs on page load to grab URL parameters
+         * from your callback.js redirect
+         */
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // These match the keys sent from your Vercel callback.js
+            const mpiQrCode = urlParams.get('MPI_QR_CODE');
+            const mpiExpiry = urlParams.get('MPI_QR_EXPIRY_SECONDS');
+
+            if (mpiQrCode && mpiExpiry) {
+                initializeQR(mpiQrCode, mpiExpiry);
+            } else {
+                console.error("Required payment fields missing from URL parameters.");
+                document.querySelector('.p_style').innerHTML += 
+                    '<p style="color:red;">Error: QR Code data not found. Please restart the payment process.</p>';
+            }
+        };
+    </script>
+</body>
+</html>
