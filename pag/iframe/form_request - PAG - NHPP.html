@@ -49,13 +49,13 @@
         </form>
 
         <hr>
-        <button onclick="autoSign()">Sign MAC</button><br>
-        <textarea id="mac" rows="1" cols="90" readonly></textarea><br> 
+        <button type="button" id="sign-btn" onclick="autoSign()">Sign MAC</button>
+        <button type="button" onclick="trim_mac()">Trim MAC (Manual)</button>
+        <br><br>
 
-        <button onclick="trim_mac()">Trim MAC</button><br><br>
-
-        <button onclick="mkReq()">Key Exchange</button>
-        <button type="button" onclick="mpReq()">Pay</button><br><br>
+        <button type="button" onclick="mkReq()">Key Exchange</button>
+        <button type="button" id="pay-btn" onclick="mpReq()">Pay</button>
+        <br><br>
 
         <form id="redirect-form" method="POST" style="display:none;"></form>
     </div>
@@ -64,133 +64,123 @@
         // --- CONFIGURATION ---
         const KEY_EXCHANGE_URL = "https://devlinkv2.paydee.co/mpigw/mkReq";
         const PAYMENT_REQUEST_URL = "https://devlinkv2.paydee.co/mpigw/mpReq";
-        const GET_CHANNEL_URL = "https://devlinkv2.paydee.co/mpigw/channels";
+        const VERCEL_CALLBACK_URL = "https://sys-int-nine.vercel.app/api/callback";
+        const VERCEL_SIGN_URL = "https://sys-int-nine.vercel.app/api/sign";
         const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB";
-		const VERCEL_CALLBACK_URL = "https://sys-int-nine.vercel.app/api/callback"
 
-
-        // Initialize form action
-        document.getElementById("form").action = PAYMENT_REQUEST_URL;
-async function autoSign() {
-    // 1. Construct the raw string (the same way you did in clear_mac)
-    const rawString = 
-        document.getElementById("MPI_TRANS_TYPE").value + 
-        document.getElementById("MPI_MERC_ID").value + 
-        document.getElementById("MPI_TRXN_ID").value +
-        document.getElementById("MPI_PURCH_DATE").value +
-        document.getElementById("MPI_PURCH_CURR").value +
-        document.getElementById("MPI_PURCH_AMT").value +
-        (document.getElementById("MPI_RESPONSE_TYPE").value || "") +
-        (document.getElementById("MPI_PAYMENT_CHANNEL_ID").value || "");
-
-    try {
-        const response = await fetch("https://sys-int-nine.vercel.app/api/sign", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataToSign: rawString })
-        });
-
-        const result = await response.json();
-        if (result.mpi_mac) {
-            document.getElementById("MPI_MAC").value = result.mpi_mac;
-            console.log("MAC signed successfully!");
-        }
-    } catch (error) {
-        console.error("Signing error:", error);
-    }
-}
         /**
-         * MP REQ - Main Payment Submission
-         * Uses native form submission to Gateway to avoid CORS errors.
+         * AUTO SIGN - Calls Vercel to generate SHA256withRSA Base64Url MAC
          */
-async function mpReq() {
-    const form = document.getElementById("form");
-    const payButton = document.querySelector("button[onclick='mpReq()']");
-    const responseType = document.getElementById("MPI_RESPONSE_TYPE").value;
+        async function autoSign() {
+            const signBtn = document.getElementById("sign-btn");
+            const rawString = 
+                document.getElementById("MPI_TRANS_TYPE").value + 
+                document.getElementById("MPI_MERC_ID").value + 
+                document.getElementById("MPI_TRXN_ID").value +
+                document.getElementById("MPI_PURCH_DATE").value +
+                document.getElementById("MPI_PURCH_CURR").value +
+                document.getElementById("MPI_PURCH_AMT").value +
+                (document.getElementById("MPI_RESPONSE_TYPE").value || "") +
+                (document.getElementById("MPI_PAYMENT_CHANNEL_ID").value || "");
 
-    // 1. Prepare fields (Set Return URL and handle empty fields)
-    document.getElementById("MPI_RETURN_URL").value = VERCEL_CALLBACK_URL;
-    
-    const inputs = form.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-        if (!input.value.trim()) {
-            input.disabled = true; // Essential for correct MAC generation on server
+            signBtn.innerText = "Signing...";
+
+            try {
+                const response = await fetch(VERCEL_SIGN_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dataToSign: rawString })
+                });
+
+                const result = await response.json();
+                if (result.mpi_mac) {
+                    document.getElementById("MPI_MAC").value = result.mpi_mac;
+                    signBtn.innerText = "✅ Signed";
+                    console.log("MAC generated successfully.");
+                } else {
+                    alert("Signing Error: " + (result.error || "Check Vercel logs"));
+                    signBtn.innerText = "Sign MAC";
+                }
+            } catch (error) {
+                console.error("Signing error:", error);
+                alert("Could not connect to signing API.");
+                signBtn.innerText = "Sign MAC";
+            }
         }
-    });
 
-    // --- CASE A: Standard Form Redirect (No Response Type) ---
-    if (!responseType) {
-        payButton.disabled = true;
-        payButton.innerText = "Redirecting to Gateway...";
-        form.submit();
-        
-        // Re-enable for UI consistency if they hit 'back'
-        setTimeout(() => {
-            inputs.forEach(input => input.disabled = false);
-            payButton.disabled = false;
-            payButton.innerText = "Pay";
-        }, 2000);
-        return; 
-    }
+        /**
+         * MP REQ - Main Submission
+         */
+        async function mpReq() {
+            const form = document.getElementById("form");
+            const payButton = document.getElementById("pay-btn");
+            const responseType = document.getElementById("MPI_RESPONSE_TYPE").value;
 
-    // --- CASE B: Capture JSON and Forward (JSON/STRING Response Type) ---
-    payButton.disabled = true;
-    payButton.innerText = "Processing JSON...";
+            document.getElementById("MPI_RETURN_URL").value = VERCEL_CALLBACK_URL;
+            
+            // Disable empty fields for Gateway requirements
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (!input.value.trim()) input.disabled = true;
+            });
 
-    // Re-enable temporarily to gather data for fetch
-    inputs.forEach(input => input.disabled = false);
-    const formData = new FormData(form);
-    const payload = new URLSearchParams();
-    
-    formData.forEach((value, key) => {
-        if (value.trim() !== "") payload.append(key, value);
-    });
+            // CASE A: Standard Browser Redirect
+            if (!responseType) {
+                payButton.disabled = true;
+                payButton.innerText = "Redirecting...";
+                form.submit();
+                return; 
+            }
 
-try {
-    const response = await fetch(PAYMENT_REQUEST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: payload
-    });
+            // CASE B: Fetch JSON and Forward to Vercel
+            payButton.disabled = true;
+            payButton.innerText = "Processing...";
 
-    const data = await response.json();
+            inputs.forEach(input => input.disabled = false); // Re-enable for FormData
+            const formData = new FormData(form);
+            const payload = new URLSearchParams();
+            formData.forEach((value, key) => {
+                if (value.trim() !== "") payload.append(key, value);
+            });
 
-    // --- REDIRECT LOGIC ---
-    const callbackForm = document.getElementById("redirect-form");
-    
-    // FORCE the action to use your Vercel URL from config
-    callbackForm.action = VERCEL_CALLBACK_URL; 
-    callbackForm.method = "POST";
-    callbackForm.innerHTML = ""; 
+            try {
+                const response = await fetch(PAYMENT_REQUEST_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: payload
+                });
 
-    Object.keys(data).forEach(key => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key];
-        callbackForm.appendChild(input);
-    });
+                const data = await response.json();
 
-    // Now this will POST to Vercel, not GitHub!
-    callbackForm.submit();
+                // Build hidden form to POST response data to Vercel Callback
+                const callbackForm = document.getElementById("redirect-form");
+                callbackForm.action = VERCEL_CALLBACK_URL; 
+                callbackForm.innerHTML = ""; 
 
-} catch (error) {
-    console.error('Error:', error);
-    alert("Fetch failed. Check CORS or network.");
-}
-}
+                Object.keys(data).forEach(key => {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = key;
+                    input.value = typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key];
+                    callbackForm.appendChild(input);
+                });
 
+                callbackForm.submit();
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert("Fetch failed (CORS restriction). Use empty Response Type.");
+                payButton.disabled = false;
+                payButton.innerText = "Pay";
+            }
+        }
 
         /**
          * MK REQ - Key Exchange
-         * Handles the background communication for keys.
          */
         async function mkReq() {
-            let MID = document.forms["form"]["MPI_MERC_ID"].value;
-            let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
-
-            const myHeaders = new Headers();
-            myHeaders.append("Content-Type", "application/json");
+            let MID = document.getElementById("MPI_MERC_ID").value;
+            let transactionID = document.getElementById("MPI_TRXN_ID").value;
 
             const raw = JSON.stringify({
                 "merchantId": MID,
@@ -198,54 +188,35 @@ try {
                 "purchaseId": transactionID
             });
 
-            const requestOptions = {
-                method: 'POST',
-                headers: myHeaders,
-                body: raw
-            };
-
             try {
-                const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
+                const response = await fetch(KEY_EXCHANGE_URL, {
+                    method: 'POST',
+                    headers: { "Content-Type": "application/json" },
+                    body: raw
+                });
                 const result = await response.json(); 
 
                 if (result.errorCode === "000") {
                     alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
                 } else {
-                    alert(`❌ Key Exchange Failed\nError Code: ${result.errorCode}\nMessage: ${result.errorMessage || 'Error'}`);
+                    alert(`❌ Failed: ${result.errorCode}`);
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert("⚠️ Connection Blocked: Check if the server allows CORS for fetch requests.");
+                alert("Connection Blocked: Check CORS.");
             }
         }
 
         /**
-         * MAC UTILITIES
+         * UTILITIES
          */
-        function clear_mac() {
-            document.getElementById("mac").innerHTML = 
-                document.forms["form"]["MPI_TRANS_TYPE"].value + 
-                document.forms["form"]["MPI_MERC_ID"].value + 
-                document.forms["form"]["MPI_TRXN_ID"].value +
-                document.forms["form"]["MPI_PURCH_DATE"].value +
-                document.forms["form"]["MPI_PURCH_CURR"].value +
-                document.forms["form"]["MPI_PURCH_AMT"].value +
-                document.forms["form"]["MPI_RESPONSE_TYPE"].value +
-                document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
-        }
-
         function trim_mac() {
-            let macElement = document.forms["form"]["MPI_MAC"];
-            let rawMac = macElement.value;
-            let trimmedMac = rawMac.replace(/[+]/g, "-")
-                                   .replace(/[/]/g, "_")
-                                   .replace(/[=]/g, "");
-            macElement.value = trimmedMac;
+            let macElement = document.getElementById("MPI_MAC");
+            macElement.value = macElement.value
+                .replace(/[+]/g, "-")
+                .replace(/[/]/g, "_")
+                .replace(/[=]/g, "");
         }
 
-        /**
-         * DATE & ID INITIALIZATION
-         */
         function initFields() {
             let d = new Date();
             let x = d.getFullYear() + 
@@ -255,13 +226,11 @@ try {
                     d.getMinutes().toString().padStart(2, '0') + 
                     d.getSeconds().toString().padStart(2, '0');
             
-            document.forms["form"]["MPI_PURCH_DATE"].value = x;
-            document.forms["form"]["MPI_TRXN_ID"].value = "PAGUAT" + x;
+            document.getElementById("MPI_PURCH_DATE").value = x;
+            document.getElementById("MPI_TRXN_ID").value = "PAGUAT" + x;
         }
 
-        // Run on load
         initFields();
-
     </script>
 </body>
 </html>
