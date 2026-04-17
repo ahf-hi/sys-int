@@ -5,14 +5,13 @@ export default function handler(req, res) {
 
     try {
         const { dataToSign } = req.body;
-        
-        // --- IMPORTANT: Store your private key in Vercel Environment Variables ---
+        // Accessing the key from Vercel Environment Variables
         const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
 
         const signer = crypto.createSign('SHA256');
         signer.update(dataToSign);
-        signer.end();
-
+        
+        // Generate signature in Base64
         const signature = signer.sign(privateKey, 'base64');
 
         // Convert Base64 to Base64Url
