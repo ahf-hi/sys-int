@@ -40,7 +40,13 @@
                 <option value="JSON">JSON</option>
                 <option value="STRING">STRING</option>
             </select>
-            
+			
+            <label for="MPI_ADDITIONAL_INFO_IND">MPI_ADDITIONAL_INFO_IND:</label>
+            <select name="MPI_ADDITIONAL_INFO_IND" id="MPI_ADDITIONAL_INFO_IND">
+                <option value=""></option>
+                <option value="Y">Y</option>
+            </select>
+			
             <label for="MPI_PAYMENT_CHANNEL_ID">MPI_PAYMENT_CHANNEL_ID:</label>
             <input type="text" name="MPI_PAYMENT_CHANNEL_ID" id="MPI_PAYMENT_CHANNEL_ID" maxlength="30">
 
@@ -204,6 +210,7 @@ try {
                 document.forms["form"]["MPI_PURCH_CURR"].value +
                 document.forms["form"]["MPI_PURCH_AMT"].value +
                 document.forms["form"]["MPI_RESPONSE_TYPE"].value +
+                document.forms["form"]["MPI_ADDITIONAL_INFO_IND"].value +
                 document.forms["form"]["MPI_PAYMENT_CHANNEL_ID"].value;
         }
 
