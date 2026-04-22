@@ -56,116 +56,218 @@
 	<label for="MPI_PURCH_AMT">MPI_PURCH_AMT (Amount):</label>
     <input type="text" name="MPI_PURCH_AMT" maxlength="19" >
 	
+    <label for="MPI_RESPONSE_TYPE">MPI_RESPONSE_TYPE:</label>
+        <select name="MPI_RESPONSE_TYPE" id="MPI_RESPONSE_TYPE">
+            <option value=""></option>
+            <option value="JSON">JSON</option>
+            <option value="STRING">STRING</option>
+        </select>
+			
+    label for="MPI_ADDITIONAL_INFO_IND">MPI_ADDITIONAL_INFO_IND:</label>
+        <select name="MPI_ADDITIONAL_INFO_IND" id="MPI_ADDITIONAL_INFO_IND">
+            <option value=""></option>
+            <option value="Y">Y</option>
+        </select>
+			
+			
 	<label for="MPI_MAC"> MPI_MAC (Signed MAC):</label>
     <textarea type="text" name="MPI_MAC" maxlength="344" rows="5" cols="90" ></textarea>
 
  </form>
+        <hr>
+        <button onclick="clear_mac()">Clear MAC</button><br>
+        <textarea id="mac" rows="1" cols="90" readonly></textarea><br> 
+
+        <button onclick="trim_mac()">Trim MAC</button><br><br>
+
+        <button onclick="mkReq()">Key Exchange</button>
+        <button type="button" onclick="mpReq()">Pay</button><br><br>
+
+        <form id="redirect-form" method="POST" style="display:none;"></form>
+    </div>
+
+
+ <script>
+        // --- CONFIGURATION ---
+        const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
+        const PAYMENT_REQUEST_URL = "https://devlink.paydee.co/mpi/mpReq";
+        const GET_CHANNEL_URL = "https://devlinkv2.paydee.co/mpigw/channels";
+        const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB";
+		const VERCEL_CALLBACK_URL = "https://sys-int-nine.vercel.app/api/callback"
+
+
+        // Initialize form action
+        document.getElementById("form").action = PAYMENT_REQUEST_URL;
+
+        /**
+         * MP REQ - Main Payment Submission
+         * Uses native form submission to Gateway to avoid CORS errors.
+         */
+async function mpReq() {
+    const form = document.getElementById("form");
+    const payButton = document.querySelector("button[onclick='mpReq()']");
+    const responseType = document.getElementById("MPI_RESPONSE_TYPE").value;
+
+    // 1. Prepare fields (Set Return URL and handle empty fields)
+    document.getElementById("MPI_RETURN_URL").value = VERCEL_CALLBACK_URL;
     
- 
-   <button onclick="clear_mac()" >Clear MAC</button><br>
-      <textarea id = "mac" rows="1" cols="90" ></textarea><br> 
-  
-   <button onclick="trim_mac()" >Trim MAC</button><br><br>
-   
-   <button onclick="mkReq()">Key Exhcange </button>
-   <button onclick="mpReq()">Pay </button><br><br>	
-</div>
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (!input.value.trim()) {
+            input.disabled = true; // Essential for correct MAC generation on server
+        }
+    });
+
+    // --- CASE A: Standard Form Redirect (No Response Type) ---
+    if (!responseType) {
+        payButton.disabled = true;
+        payButton.innerText = "Redirecting to Gateway...";
+        form.submit();
+        
+        // Re-enable for UI consistency if they hit 'back'
+        setTimeout(() => {
+            inputs.forEach(input => input.disabled = false);
+            payButton.disabled = false;
+            payButton.innerText = "Pay";
+        }, 2000);
+        return; 
+    }
+
+    // --- CASE B: Capture JSON and Forward (JSON/STRING Response Type) ---
+    payButton.disabled = true;
+    payButton.innerText = "Processing JSON...";
+
+    // Re-enable temporarily to gather data for fetch
+    inputs.forEach(input => input.disabled = false);
+    const formData = new FormData(form);
+    const payload = new URLSearchParams();
+    
+    formData.forEach((value, key) => {
+        if (value.trim() !== "") payload.append(key, value);
+    });
+
+try {
+    const response = await fetch(PAYMENT_REQUEST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: payload
+    });
+
+    const data = await response.json();
+
+    // --- REDIRECT LOGIC ---
+    const callbackForm = document.getElementById("redirect-form");
+    
+    // FORCE the action to use your Vercel URL from config
+    callbackForm.action = VERCEL_CALLBACK_URL; 
+    callbackForm.method = "POST";
+    callbackForm.innerHTML = ""; 
+
+    Object.keys(data).forEach(key => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key];
+        callbackForm.appendChild(input);
+    });
+
+    // Now this will POST to Vercel, not GitHub!
+    callbackForm.submit();
+
+} catch (error) {
+    console.error('Error:', error);
+    alert("Fetch failed. Check CORS or network.");
+}
+}
 
 
+        /**
+         * MK REQ - Key Exchange
+         * Handles the background communication for keys.
+         */
+        async function mkReq() {
+            let MID = document.forms["form"]["MPI_MERC_ID"].value;
+            let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
 
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+
+            const raw = JSON.stringify({
+                "merchantId": MID,
+                "pubKey": PUBLICKEY,
+                "purchaseId": transactionID
+            });
+
+            const requestOptions = {
+                method: 'POST',
+                headers: myHeaders,
+                body: raw
+            };
+
+            try {
+                const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
+                const result = await response.json(); 
+
+                if (result.errorCode === "000") {
+                    alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
+                } else {
+                    alert(`❌ Key Exchange Failed\nError Code: ${result.errorCode}\nMessage: ${result.errorMessage || 'Error'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("⚠️ Connection Blocked: Check if the server allows CORS for fetch requests.");
+            }
+        }
+
+        /**
+         * MAC UTILITIES
+         */
+		function clear_mac() 
+			{
+				document.getElementById("mac").innerHTML = 
+  				  document.forms["form"]["MPI_TRANS_TYPE"].value 
+  				+ document.forms["form"]["MPI_MERC_ID"].value 
+  				+ document.forms["form"]["MPI_PAN"].value 
+  				+ document.forms["form"]["MPI_CARD_HOLDER_NAME"].value 
+  				+ document.forms["form"]["MPI_PAN_EXP"].value 
+  				+ document.forms["form"]["MPI_CVV2"].value 
+  				+ document.forms["form"]["MPI_TRXN_ID"].value
+  				+ document.forms["form"]["MPI_ORI_TRXN_ID"].value
+  				+ document.forms["form"]["MPI_PURCH_DATE"].value
+  				+ document.forms["form"]["MPI_PURCH_CURR"].value
+  				+ document.forms["form"]["MPI_PURCH_AMT"].value
+				+ document.forms["form"]["MPI_RESPONSE_TYPE"].value
+                + document.forms["form"]["MPI_ADDITIONAL_INFO_IND"].value;
+			}
+
+        function trim_mac() {
+            let macElement = document.forms["form"]["MPI_MAC"];
+            let rawMac = macElement.value;
+            let trimmedMac = rawMac.replace(/[+]/g, "-")
+                                   .replace(/[/]/g, "_")
+                                   .replace(/[=]/g, "");
+            macElement.value = trimmedMac;
+        }
+
+        /**
+         * DATE & ID INITIALIZATION
+         */
+        function initFields() {
+            let d = new Date();
+            let x = d.getFullYear() + 
+                    (d.getMonth() + 1).toString().padStart(2, '0') + 
+                    d.getDate().toString().padStart(2, '0') + 
+                    d.getHours().toString().padStart(2, '0') + 
+                    d.getMinutes().toString().padStart(2, '0') + 
+                    d.getSeconds().toString().padStart(2, '0');
+            
+            document.forms["form"]["MPI_PURCH_DATE"].value = x;
+            document.forms["form"]["MPI_TRXN_ID"].value = "MPIUAT" + x;
+        }
+
+        // Run on load
+        initFields();
+
+    </script>
 </body>
-
-
-<script>
-
-const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
-const PAYMENT_REQUEST_URL = "https://devlink.paydee.co/mpi/mpReq";
-
-document.getElementById("form").action = PAYMENT_REQUEST_URL;
-
-function mkReq() 
-{
- let MID =  document.forms["form"]["MPI_MERC_ID"].value
- let transactionID =  document.forms["form"]["MPI_TRXN_ID"].value
- 
- var myHeaders = new Headers();
-    myHeaders.append("Content-Type", "application/json");
-
- var raw = JSON.stringify({
-    "merchantId": MID,
-    "pubKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB",
-    "purchaseId": transactionID
- });
-
- var requestOptions = {
-    method: 'POST',
-    headers: myHeaders,
-    mode: 'no-cors',
-    body: raw,
-    redirect: 'follow'
- };
-
- fetch(KEY_EXCHANGE_URL, requestOptions)
-  .then(response => response.json())
-  .then(commits => alert(commits[0].author.login));
-  
-} 
-
-function mpReq()
-{
-    document.getElementById("form").submit();
-}
-
-
-function clear_mac() 
-{
-  document.getElementById("mac").innerHTML = 
-    document.forms["form"]["MPI_TRANS_TYPE"].value 
-  + document.forms["form"]["MPI_MERC_ID"].value 
-  + document.forms["form"]["MPI_PAN"].value 
-  + document.forms["form"]["MPI_CARD_HOLDER_NAME"].value 
-  + document.forms["form"]["MPI_PAN_EXP"].value 
-  + document.forms["form"]["MPI_CVV2"].value 
-  + document.forms["form"]["MPI_TRXN_ID"].value
-  + document.forms["form"]["MPI_ORI_TRXN_ID"].value
-  + document.forms["form"]["MPI_PURCH_DATE"].value
-  + document.forms["form"]["MPI_PURCH_CURR"].value
-  + document.forms["form"]["MPI_PURCH_AMT"].value;
-}
-
-function trim_mac() {
-  let macElement = document.forms["form"]["MPI_MAC"];
-  
-  let rawMac = macElement.value;
-  
-  let trimmedMac = rawMac.replace(/[+]/g, "-")
-                         .replace(/[/]/g, "_")
-                         .replace(/[=]/g, "");
-  
-  macElement.value = trimmedMac;
-}
-
-let d = new Date();
-let year = d.getFullYear() ;
-let mth  = d.getMonth() +1;
- mth = mth.toString().padStart(2, '0');
-let day = d.getDate() ;
- day = day.toString().padStart(2, '0');
-let hrs = d.getHours() ;
- hrs = hrs.toString().padStart(2, '0');
-let min = d.getMinutes() ;
- min = min.toString().padStart(2, '0');
-let sec = d.getSeconds() ;
- sec = sec.toString().padStart(2, '0');
- 
-let x = year + mth + day + hrs + min + sec;
-document.forms["form"]["MPI_PURCH_DATE"].value = x;
-
-let y = "MPIUAT" + x;
-document.forms["form"]["MPI_TRXN_ID"].value = y;
-
-	
-</script>
-
 </html>
-
