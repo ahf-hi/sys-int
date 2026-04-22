@@ -90,7 +90,7 @@
 
  <script>
         // --- CONFIGURATION ---
-        const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
+        const KEY_EXCHANGE_URL = "/api/key-exchange";
         const PAYMENT_REQUEST_URL = "https://devlink.paydee.co/mpi/mpReq";
         const GET_CHANNEL_URL = "https://devlinkv2.paydee.co/mpigw/channels";
         const PUBLICKEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq8j2SHHfzMLlhYppnlk-QqjjjZwMkhK6s6rERd0JhhY_6-Md4Z0327uEdfNbJrSEPJVPT55gjRhx4MorEhrabuafuY8thSPS4epwkOjjPtELwZxViWe1dzG5TQakJ_i8ZOQuUYFJg02RcwUTzE3ty-x7mkwj9t2wAdRqTagyaDIAVMTxP_Y4AS76xjA3aH43Q0HKHGAxxIlXBIQxImuPhlUbPtVtTHIsUwkIx2BDh8kPZ3Mgr3Cyky0F-cHpEFSi3rPSSLD_FVHlJRW2cODVm8E-s98CURQYs1npzDztzZgZPnnb9K57CB2Z50Ve6qUV7z4-uHs3nehiMJHktIs7LQIDAQAB";
@@ -182,43 +182,39 @@ try {
 }
 
 
-        /**
-         * MK REQ - Key Exchange
-         * Handles the background communication for keys.
-         */
-        async function mkReq() {
-            let MID = document.forms["form"]["MPI_MERC_ID"].value;
-            let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
+/**
+* MK REQ - Key Exchange
+* Handles the background communication for keys.
+*/
+async function mkReq() {
+    let MID = document.forms["form"]["MPI_MERC_ID"].value;
+    let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
 
-            const myHeaders = new Headers();
-            myHeaders.append("Content-Type", "application/json");
+    const raw = JSON.stringify({
+        "merchantId": MID,
+        "pubKey": PUBLICKEY,
+        "purchaseId": transactionID
+    });
 
-            const raw = JSON.stringify({
-                "merchantId": MID,
-                "pubKey": PUBLICKEY,
-                "purchaseId": transactionID
-            });
+    try {
+        const response = await fetch(KEY_EXCHANGE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: raw
+        });
 
-            const requestOptions = {
-                method: 'POST',
-                headers: myHeaders,
-                body: raw
-            };
+        const result = await response.json(); 
 
-            try {
-                const response = await fetch(KEY_EXCHANGE_URL, requestOptions);
-                const result = await response.json(); 
-
-                if (result.errorCode === "000") {
-                    alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
-                } else {
-                    alert(`❌ Key Exchange Failed\nError Code: ${result.errorCode}\nMessage: ${result.errorMessage || 'Error'}`);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert("⚠️ Connection Blocked: Check if the server allows CORS for fetch requests.");
-            }
+        if (result.errorCode === "000") {
+            alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
+        } else {
+            alert(`❌ Failed\nCode: ${result.errorCode}\nMessage: ${result.errorMessage}`);
         }
+    } catch (error) {
+        console.error('Error:', error);
+        alert("⚠️ Proxy Error: Check Vercel logs.");
+    }
+}
 
         /**
          * MAC UTILITIES
