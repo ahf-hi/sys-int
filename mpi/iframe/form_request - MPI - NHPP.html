@@ -191,9 +191,9 @@ async function mkReq() {
     let transactionID = document.forms["form"]["MPI_TRXN_ID"].value;
 
     const raw = JSON.stringify({
-        "merchantId": MID,
-        "pubKey": PUBLICKEY,
-        "purchaseId": transactionID
+        merchantId: MID,
+        pubKey: PUBLICKEY,
+        purchaseId: transactionID
     });
 
     try {
@@ -203,19 +203,30 @@ async function mkReq() {
             body: raw
         });
 
-        const result = await response.json(); 
+        console.log("HTTP status:", response.status);
+
+        // IMPORTANT: read as text first
+        const text = await response.text();
+        console.log("Raw response:", text);
+
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            throw new Error("Response is not JSON");
+        }
 
         if (result.errorCode === "000") {
-            alert(`✅ Success!\nCode: ${result.errorCode}\nMessage: ${result.errorMessage || 'Key Exchange successful.'}`);
+            alert(`✅ Success!\nCode: ${result.errorCode}`);
         } else {
             alert(`❌ Failed\nCode: ${result.errorCode}\nMessage: ${result.errorMessage}`);
         }
+
     } catch (error) {
         console.error('Error:', error);
-        alert("⚠️ Proxy Error: Check Vercel logs.");
+        alert("⚠️ Check console + Vercel logs");
     }
 }
-
         /**
          * MAC UTILITIES
          */
