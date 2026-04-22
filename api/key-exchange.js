@@ -1,5 +1,15 @@
 export default async function handler(req, res) {
-  // Only allow POST requests to your own API
+  // --- CORS HEADERS (must be first, always set) ---
+  res.setHeader('Access-Control-Allow-Origin', '*'); // tighten later if needed
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // --- HANDLE PREFLIGHT ---
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end(); // or 204
+  }
+
+  // --- ONLY ALLOW POST AFTER THIS ---
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -7,19 +17,16 @@ export default async function handler(req, res) {
   try {
     const KEY_EXCHANGE_URL = "https://devlink.paydee.co/mpi/mkReq";
 
-    // Forward the request to Paydee from the server
     const response = await fetch(KEY_EXCHANGE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // You can add other headers here if Paydee requires them (like User-Agent)
       },
       body: JSON.stringify(req.body),
     });
 
     const data = await response.json();
-    
-    // Return Paydee's response back to your frontend
+
     return res.status(response.status).json(data);
   } catch (error) {
     console.error('Proxy Error:', error);
